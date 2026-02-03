@@ -1,0 +1,64 @@
+// Common API response wrapper - API設計書.md 1.2
+
+export interface SuccessResponse<T> {
+    success: true;
+    data: T;
+}
+
+export interface ErrorResponse {
+    success: false;
+    error: {
+        code: string;
+        message: string;
+    };
+}
+
+export type ApiResponse<T> = SuccessResponse<T> | ErrorResponse;
+
+// Error codes from API設計書.md 14節
+export const ErrorCodes = {
+    // Auth errors
+    AUTH_INVALID_CREDENTIALS: 'AUTH_INVALID_CREDENTIALS',
+    AUTH_TOKEN_EXPIRED: 'AUTH_TOKEN_EXPIRED',
+    AUTH_UNAUTHORIZED: 'AUTH_UNAUTHORIZED',
+    AUTH_FORBIDDEN: 'AUTH_FORBIDDEN',
+
+    // User errors
+    USER_SUSPENDED: 'USER_SUSPENDED',
+    USER_DEACTIVATED: 'USER_DEACTIVATED',
+
+    // Organization errors
+    ORG_NOT_FOUND: 'ORG_NOT_FOUND',
+    ORG_INACTIVE: 'ORG_INACTIVE',
+    ORG_INVALID_INVITE_CODE: 'ORG_INVALID_INVITE_CODE',
+
+    // Product errors
+    PRODUCT_NOT_FOUND: 'PRODUCT_NOT_FOUND',
+    PRODUCT_SOLD_OUT: 'PRODUCT_SOLD_OUT',
+    PRODUCT_INSUFFICIENT_STOCK: 'PRODUCT_INSUFFICIENT_STOCK',
+
+    // Category errors
+    CATEGORY_NOT_FOUND: 'CATEGORY_NOT_FOUND',
+
+    // Discount errors
+    DISCOUNT_NOT_FOUND: 'DISCOUNT_NOT_FOUND',
+    DISCOUNT_INACTIVE: 'DISCOUNT_INACTIVE',
+
+    // Transaction errors
+    TXN_NOT_FOUND: 'TXN_NOT_FOUND',
+    TXN_ALREADY_COMPLETED: 'TXN_ALREADY_COMPLETED',
+    TXN_CANNOT_REFUND: 'TXN_CANNOT_REFUND',
+
+    // PayPay errors
+    PAYPAY_CREATE_FAILED: 'PAYPAY_CREATE_FAILED',
+    PAYPAY_TIMEOUT: 'PAYPAY_TIMEOUT',
+    PAYPAY_REFUND_FAILED: 'PAYPAY_REFUND_FAILED',
+
+    // System errors
+    SYSTEM_DISABLED: 'SYSTEM_DISABLED',
+    VALIDATION_ERROR: 'VALIDATION_ERROR',
+    NOT_FOUND: 'NOT_FOUND',
+    INTERNAL_ERROR: 'INTERNAL_ERROR',
+} as const;
+
+export type ErrorCode = typeof ErrorCodes[keyof typeof ErrorCodes];
