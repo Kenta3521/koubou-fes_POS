@@ -4,6 +4,8 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import { createLogger } from './utils/logger.js';
+import authRoutes from './routes/auth.js';
+import usersRoutes from './routes/users.js';
 
 // Load environment variables
 dotenv.config();
@@ -42,7 +44,10 @@ app.get('/health', (_req: Request, res: Response) => {
     });
 });
 
-// API routes will be mounted here
+// API routes
+app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/users', usersRoutes);
+
 app.get('/api/v1', (_req: Request, res: Response) => {
     res.json({
         message: '光芒祭POSシステム API',

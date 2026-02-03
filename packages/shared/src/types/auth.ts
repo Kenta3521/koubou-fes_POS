@@ -41,3 +41,10 @@ export interface ChangePasswordRequest {
     currentPassword: string;
     newPassword: string;
 }
+
+// JWT Payload - JWT token payload structure
+export interface JWTPayload {
+    userId: string;
+    email: string;
+    isSystemAdmin: boolean;
+}
