@@ -28,10 +28,25 @@ export function generateToken(payload: JWTPayload): string {
  * @throws トークンが無効または期限切れの場合
  */
 export function verifyToken(token: string): JWTPayload {
-    try {
-        const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
-        return decoded;
-    } catch (error) {
-        throw new Error('Invalid or expired token');
-    }
+    return jwt.verify(token, JWT_SECRET) as JWTPayload;
+}
+
+/**
+ * パスワードリセット用トークンを生成 (有効期限15分)
+ * @param userId ユーザーID
+ * @returns JWT トークン文字列
+ */
+export function generateResetToken(userId: string): string {
+    return jwt.sign({ userId, purpose: 'password_reset' }, JWT_SECRET, {
+        expiresIn: '15m',
+    });
+}
+
+/**
+ * パスワードリセット用トークンを検証
+ * @param token JWT トークン文字列
+ * @returns デコードされたペイロード ({ userId, purpose })
+ */
+export function verifyResetToken(token: string): { userId: string; purpose: string } {
+    return jwt.verify(token, JWT_SECRET) as { userId: string; purpose: string };
 }

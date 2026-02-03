@@ -7,7 +7,7 @@
 import bcrypt from 'bcrypt';
 import { LoginResponse, JWTPayload, Role, UserStatus } from '@koubou-fes-pos/shared';
 import prisma from '../utils/prisma.js';
-import { generateToken } from '../utils/jwt.js';
+import { generateToken, generateResetToken, verifyResetToken } from '../utils/jwt.js';
 
 /**
  * ユーザーログイン処理
@@ -202,4 +202,70 @@ export async function registerUser(
     };
 
     return response;
+}
+
+/**
+ * パスワードリセット要求処理
+ * @param email メールアドレス
+ * @returns リセットトークン（開発用）
+ */
+export async function requestPasswordReset(email: string): Promise<string> {
+    const user = await prisma.user.findUnique({
+        where: { email },
+    });
+
+    if (!user) {
+        // セキュリティ上、本来はユーザーの存在有無を明かすべきではないが
+        // 開発フェーズであり、トークンをAPIレスポンスで返す仕様のため
+        // ここではエラーを投げるか、あるいは空を返す。
+        // デバッグのしやすさを優先し、明確なエラーとする。
+        // 本番実装時はメール送信を行い、常に「メールを送信しました」と返すこと。
+        throw new Error('USER_NOT_FOUND');
+    }
+
+    if (user.status !== UserStatus.ACTIVE && user.status !== UserStatus.SUSPENDED) {
+        throw new Error('USER_INACTIVE');
+    }
+
+    // リセットトークン生成
+    // 正しくは先ほど追加した generateResetToken を使用する
+    // こちらは { userId, purpose } を含む
+    const resetToken = generateResetToken(user.id);
+
+    return resetToken;
+}
+
+/**
+ * パスワードリセット実行処理
+ * @param token リセットトークン
+ * @param newPassword 新しいパスワード
+ */
+export async function resetPassword(token: string, newPassword: string): Promise<void> {
+    // トークン検証
+    const payload = verifyResetToken(token);
+
+    // 用途確認
+    if (payload.purpose !== 'password_reset') {
+        throw new Error('INVALID_TOKEN_PURPOSE');
+    }
+
+    const userId = payload.userId;
+
+    // ユーザー確認
+    const user = await prisma.user.findUnique({
+        where: { id: userId },
+    });
+
+    if (!user) {
+        throw new Error('USER_NOT_FOUND');
+    }
+
+    // パスワードハッシュ化
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+
+    // パスワード更新
+    await prisma.user.update({
+        where: { id: userId },
+        data: { passwordHash },
+    });
 }
