@@ -29,9 +29,9 @@
 | タスクID | タスク名 | 詳細 | 完了条件 |
 |----------|----------|------|----------|
 | P1-007 | Prisma初期化 | prisma init, スキーマ作成 | スキーマファイル完成 |
+| P1-010 | Docker Compose | ローカルPostgreSQL起動 | `docker-compose up` で起動 |
 | P1-008 | マイグレーション実行 | npx prisma migrate dev | テーブル作成成功 |
 | P1-009 | Seed作成 | 初期データ投入スクリプト | テストユーザー作成 |
-| P1-010 | Docker Compose | ローカルPostgreSQL起動 | `docker-compose up` で起動 |
 
 ### 2.3 認証システム
 

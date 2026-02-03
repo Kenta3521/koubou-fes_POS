@@ -1,0 +1,191 @@
+@startuml
+' -- 設定 --
+hide circle
+skinparam linetype ortho
+
+' -- 列挙型 (Enums) --
+enum Role {
+  ADMIN
+  STAFF
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CASH
+  PAYPAY
+}
+
+enum StockChangeReason {
+  SALE
+  REPLENISH
+  ADJUSTMENT
+  RETURN
+}
+
+enum DiscountType {
+  FIXED
+  PERCENT
+}
+
+' -- エンティティ --
+
+entity "User (ユーザー)" as User {
+  * id : UUID <<PK>>
+  --
+  * email : String <<UNIQUE>>
+  * passwordHash : String
+  * name : String
+  status : UserStatus
+  isSystemAdmin : Boolean
+  createdAt : DateTime
+}
+
+entity "Organization (団体)" as Organization {
+  * id : UUID <<PK>>
+  --
+  * name : String
+  * inviteCode : String <<UNIQUE>>
+  isActive : Boolean
+  createdAt : DateTime
+}
+
+entity "UserOrganization (所属・権限)" as UserOrganization {
+  * userId : UUID <<PK, FK>>
+  * organizationId : UUID <<PK, FK>>
+  --
+  role : Role
+}
+
+entity "Category (商品カテゴリ)" as Category {
+  * id : UUID <<PK>>
+  --
+  * organizationId : UUID <<FK>>
+  * name : String
+  sortOrder : Int
+}
+
+entity "Product (商品)" as Product {
+  * id : UUID <<PK>>
+  --
+  * organizationId : UUID <<FK>>
+  categoryId : UUID <<FK>>
+  * name : String
+  * price : Int
+  stock : Int
+  isActive : Boolean
+}
+
+entity "StockLog (在庫変動履歴)" as StockLog {
+  * id : UUID <<PK>>
+  --
+  * productId : UUID <<FK>>
+  * changeAmount : Int
+  * reason : StockChangeReason
+  createdAt : DateTime
+}
+
+entity "Discount (割引設定)" as Discount {
+  * id : UUID <<PK>>
+  --
+  * organizationId : UUID <<FK>>
+  * name : String
+  * type : DiscountType
+  * value : Int
+  isActive : Boolean
+}
+
+entity "Transaction (取引ヘッダー)" as Transaction {
+  * id : UUID <<PK>>
+  --
+  * organizationId : UUID <<FK>>
+  * userId : UUID <<FK>>
+  discountId : UUID <<FK>>
+  * totalAmount : Int
+  discountAmount : Int
+  * paymentMethod : PaymentMethod
+  paypayOrderId : String <<UNIQUE>>
+  status : TransactionStatus
+  createdAt : DateTime
+}
+
+entity "TransactionItem (取引明細)" as TransactionItem {
+  * id : UUID <<PK>>
+  --
+  * transactionId : UUID <<FK>>
+  * productId : UUID <<FK>>
+  * quantity : Int
+  * unitPrice : Int
+}
+
+entity "CashReport (レジ締め報告)" as CashReport {
+  * id : UUID <<PK>>
+  --
+  * organizationId : UUID <<FK>>
+  * userId : UUID <<FK>>
+  * openingCash : Int
+  * theoreticalSales : Int
+  * actualCash : Int
+  * difference : Int
+  createdAt : DateTime
+}
+
+entity "AuditLog (監査ログ)" as AuditLog {
+  * id : UUID <<PK>>
+  --
+  organizationId : UUID <<FK>>
+  * userId : UUID <<FK>>
+  * action : String
+  targetId : UUID
+  payload : JSON
+  createdAt : DateTime
+}
+
+entity "SystemSetting (システム設定)" as SystemSetting {
+  * id : String <<PK>>
+  --
+  eventDate : DateTime
+  eventStartTime : String
+  eventEndTime : String
+  systemEnabled : Boolean
+  paypayEnabled : Boolean
+  paypayQrTimeout : Int
+  updatedAt : DateTime
+}
+
+' -- リレーションシップ --
+
+User ||--o{ UserOrganization
+Organization ||--o{ UserOrganization
+
+Organization ||--o{ Category
+Organization ||--o{ Product
+Organization ||--o{ Discount
+Organization ||--o{ Transaction
+Organization ||--o{ CashReport
+Organization ||--o{ AuditLog
+
+Category ||--o{ Product
+
+Product ||--o{ TransactionItem
+Product ||--o{ StockLog
+
+User ||--o{ Transaction
+User ||--o{ CashReport
+User ||--o{ AuditLog
+
+Transaction ||--o{ TransactionItem
+Transaction }o--o| Discount
+
+@enduml

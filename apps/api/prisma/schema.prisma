@@ -1,0 +1,194 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Enums from DB設計書.md 2節
+
+enum Role {
+  ADMIN
+  STAFF
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CASH
+  PAYPAY
+}
+
+enum StockChangeReason {
+  SALE
+  REPLENISH
+  ADJUSTMENT
+  RETURN
+}
+
+enum DiscountType {
+  FIXED
+  PERCENT
+}
+
+// Models from DB設計書.md 3節
+
+model User {
+  id            String             @id @default(uuid())
+  email         String             @unique
+  passwordHash  String
+  name          String
+  status        UserStatus         @default(ACTIVE)
+  isSystemAdmin Boolean            @default(false)
+  organizations UserOrganization[]
+  transactions  Transaction[]
+  cashReports   CashReport[]
+  auditLogs     AuditLog[]
+  createdAt     DateTime           @default(now())
+}
+
+model Organization {
+  id           String             @id @default(uuid())
+  name         String
+  inviteCode   String             @unique
+  isActive     Boolean            @default(true)
+  members      UserOrganization[]
+  categories   Category[]
+  products     Product[]
+  discounts    Discount[]
+  transactions Transaction[]
+  cashReports  CashReport[]
+  auditLogs    AuditLog[]
+  createdAt    DateTime           @default(now())
+}
+
+model UserOrganization {
+  userId         String
+  organizationId String
+  role           Role         @default(STAFF)
+  user           User         @relation(fields: [userId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  @@id([userId, organizationId])
+}
+
+model Category {
+  id             String       @id @default(uuid())
+  organizationId String
+  name           String
+  sortOrder      Int          @default(0)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  products       Product[]
+}
+
+model Product {
+  id             String            @id @default(uuid())
+  organizationId String
+  categoryId     String?
+  name           String
+  price          Int
+  stock          Int               @default(0)
+  isActive       Boolean           @default(true)
+  organization   Organization      @relation(fields: [organizationId], references: [id])
+  category       Category?         @relation(fields: [categoryId], references: [id])
+  items          TransactionItem[]
+  stockLogs      StockLog[]
+}
+
+model StockLog {
+  id           String            @id @default(uuid())
+  productId    String
+  changeAmount Int
+  reason       StockChangeReason
+  product      Product           @relation(fields: [productId], references: [id])
+  createdAt    DateTime          @default(now())
+}
+
+model Discount {
+  id             String        @id @default(uuid())
+  organizationId String
+  name           String
+  type           DiscountType
+  value          Int
+  isActive       Boolean       @default(true)
+  organization   Organization  @relation(fields: [organizationId], references: [id])
+  transactions   Transaction[]
+}
+
+model Transaction {
+  id             String            @id @default(uuid())
+  organizationId String
+  userId         String
+  totalAmount    Int
+  discountAmount Int               @default(0)
+  discountId     String?
+  paymentMethod  PaymentMethod
+  paypayOrderId  String?           @unique
+  status         TransactionStatus @default(PENDING)
+  organization   Organization      @relation(fields: [organizationId], references: [id])
+  user           User              @relation(fields: [userId], references: [id])
+  discount       Discount?         @relation(fields: [discountId], references: [id])
+  items          TransactionItem[]
+  createdAt      DateTime          @default(now())
+}
+
+model TransactionItem {
+  id            String      @id @default(uuid())
+  transactionId String
+  productId     String
+  quantity      Int
+  unitPrice     Int
+  transaction   Transaction @relation(fields: [transactionId], references: [id])
+  product       Product     @relation(fields: [productId], references: [id])
+}
+
+model CashReport {
+  id               String       @id @default(uuid())
+  organizationId   String
+  userId           String
+  openingCash      Int
+  theoreticalSales Int
+  actualCash       Int
+  difference       Int
+  organization     Organization @relation(fields: [organizationId], references: [id])
+  user             User         @relation(fields: [userId], references: [id])
+  createdAt        DateTime     @default(now())
+}
+
+model AuditLog {
+  id             String        @id @default(uuid())
+  organizationId String?
+  userId         String
+  action         String
+  targetId       String?
+  payload        Json?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  user           User          @relation(fields: [userId], references: [id])
+  createdAt      DateTime      @default(now())
+}
+
+model SystemSetting {
+  id              String    @id @default("singleton")
+  eventDate       DateTime?
+  eventStartTime  String?
+  eventEndTime    String?
+  systemEnabled   Boolean   @default(true)
+  paypayEnabled   Boolean   @default(true)
+  paypayQrTimeout Int       @default(300)
+  updatedAt       DateTime  @updatedAt
+}

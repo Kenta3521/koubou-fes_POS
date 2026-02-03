@@ -228,7 +228,7 @@ POST /api/v1/organizations/:orgId/regenerate-invite
 GET /api/v1/organizations/:orgId/members
 ```
 
-### 4.7 メンバー権限変更 (ORG_ADMIN)
+### 4.7 メンバー権限変更 (ORG_ADMIN / SYSTEM_ADMIN)
 ```
 PATCH /api/v1/organizations/:orgId/members/:userId
 ```
