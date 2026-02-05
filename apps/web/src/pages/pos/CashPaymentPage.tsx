@@ -32,9 +32,19 @@ export default function CashPaymentPage() {
         return null;
     }
 
-    // 金額追加ハンドラ
-    const handleAddAmount = (amount: number) => {
-        setDepositAmount(prev => prev + amount);
+    // 数値入力ハンドラ
+    const handleNumberClick = (num: number | '00') => {
+        setDepositAmount(prev => {
+            const nextValue = prev * (num === '00' ? 100 : 10) + (num === '00' ? 0 : num);
+            // 100万円以上は制限 (誤入力防止)
+            if (nextValue > 1000000) return prev;
+            return nextValue;
+        });
+    };
+
+    // 合計金額をセット (現計)
+    const handleExactAmount = () => {
+        setDepositAmount(totalAmount);
     };
 
     // クリアハンドラ
@@ -83,9 +93,10 @@ export default function CashPaymentPage() {
                     change,
                 },
             });
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('[CashPayment] Failed to create transaction:', err);
-            setError(err.response?.data?.error?.message || '取引の作成に失敗しました');
+            const errorMessage = (err as any)?.response?.data?.error?.message || '取引の作成に失敗しました';
+            setError(errorMessage);
         } finally {
             setIsProcessing(false);
         }
@@ -109,120 +120,134 @@ export default function CashPaymentPage() {
             {/* メインコンテンツ */}
             <main className="flex-1 p-4 flex flex-col items-center justify-center max-w-md mx-auto w-full">
                 <div className="w-full space-y-6">
-                    {/* 合計金額 */}
-                    <Card>
-                        <CardContent className="pt-6 text-center">
-                            <p className="text-sm text-gray-600 mb-2">合計金額</p>
-                            <p className="text-4xl font-bold text-gray-900">
-                                ¥{totalAmount.toLocaleString()}
-                            </p>
+                    {/* 合計請求額ディスプレイ */}
+                    <Card className="bg-gray-50 border-gray-200 shadow-none border">
+                        <CardContent className="py-3 px-6 flex justify-between items-baseline">
+                            <span className="text-sm font-bold text-gray-400 uppercase tracking-tighter">会計合計</span>
+                            <span className="text-2xl font-black text-gray-600">
+                                <span className="text-lg mr-1">¥</span>
+                                {totalAmount.toLocaleString()}
+                            </span>
                         </CardContent>
                     </Card>
 
-                    {/* 預かり金額 */}
-                    <Card className="border-2 border-primary">
-                        <CardContent className="pt-6 text-center">
-                            <p className="text-sm text-gray-600 mb-2">預かり金額</p>
-                            <p className="text-5xl font-bold text-primary">
-                                ¥{depositAmount.toLocaleString()}
-                            </p>
-                        </CardContent>
-                    </Card>
+                    {/* メイン入力・お釣りエリア */}
+                    <div className="space-y-4">
+                        {/* 預かり金額 */}
+                        <div className="bg-white border-2 border-primary rounded-2xl px-8 py-6 flex flex-col items-center justify-center shadow-md">
+                            <span className="text-xs font-black text-primary/60 uppercase mb-1">預かり金額</span>
+                            <span className="text-6xl font-black text-primary tracking-tighter">
+                                <span className="text-3xl mr-1 italic">¥</span>
+                                {depositAmount.toLocaleString()}
+                            </span>
+                        </div>
 
-                    {/* 金額ボタン */}
-                    <div className="space-y-3">
-                        <div className="grid grid-cols-3 gap-3">
+                        {/* お釣り表示 (預かりのすぐ下に配置) */}
+                        <div className={cn(
+                            "rounded-2xl p-4 transition-all duration-300 flex items-center justify-between mx-4",
+                            isInsufficient
+                                ? "bg-red-50 border-2 border-red-200 text-red-700"
+                                : change === 0
+                                    ? "bg-gray-50 border border-gray-200 text-gray-500"
+                                    : "bg-green-500 text-white shadow-lg border-2 border-green-400 scale-105"
+                        )}>
+                            <div className="flex flex-col">
+                                <span className={cn(
+                                    "text-xs font-black uppercase",
+                                    !isInsufficient && change > 0 ? "text-white/80" : "opacity-70"
+                                )}>
+                                    {isInsufficient ? '不足分' : change === 0 ? 'お釣りなし' : 'お釣り'}
+                                </span>
+                                <span className="text-4xl font-black italic tracking-tighter">
+                                    ¥{Math.abs(change).toLocaleString()}
+                                </span>
+                            </div>
+                            {isInsufficient && (
+                                <div className="bg-red-500 text-white text-xs font-black px-3 py-1.5 rounded-full animate-pulse">
+                                    不足
+                                </div>
+                            )}
+                            {!isInsufficient && change > 0 && (
+                                <div className="bg-white text-green-600 text-xs font-black px-3 py-1.5 rounded-full shadow-sm">
+                                    確定可能
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* 特大テンキー (バックスペース廃止、サイズ拡大) */}
+                    <div className="grid grid-cols-4 gap-4 h-[440px]">
+                        {/* 数字キー (左3列) */}
+                        <div className="col-span-3 grid grid-cols-3 gap-3">
+                            {[7, 8, 9, 4, 5, 6, 1, 2, 3].map((num) => (
+                                <Button
+                                    key={num}
+                                    variant="outline"
+                                    onClick={() => handleNumberClick(num)}
+                                    className="h-full text-4xl font-black bg-white border-2 border-gray-100 rounded-2xl shadow-sm hover:border-primary/50 hover:bg-primary/5 active:scale-90 transition-all"
+                                >
+                                    {num}
+                                </Button>
+                            ))}
                             <Button
                                 variant="outline"
-                                size="lg"
-                                onClick={() => handleAddAmount(100)}
-                                className="h-16 text-lg font-bold"
+                                onClick={() => handleNumberClick(0)}
+                                className="h-full text-4xl font-black bg-white border-2 border-gray-100 rounded-2xl shadow-sm hover:border-primary/50 hover:bg-primary/5 active:scale-90 transition-all"
                             >
-                                +100
+                                0
                             </Button>
                             <Button
                                 variant="outline"
-                                size="lg"
-                                onClick={() => handleAddAmount(500)}
-                                className="h-16 text-lg font-bold"
+                                onClick={() => handleNumberClick('00')}
+                                className="h-full text-3xl font-black bg-white border-2 border-gray-100 rounded-2xl shadow-sm hover:border-primary/50 hover:bg-primary/5 active:scale-90 transition-all"
                             >
-                                +500
+                                00
                             </Button>
                             <Button
                                 variant="outline"
-                                size="lg"
-                                onClick={() => handleAddAmount(1000)}
-                                className="h-16 text-lg font-bold"
+                                onClick={handleClear}
+                                className="h-full text-3xl font-black bg-white border-2 border-red-200 rounded-2xl shadow-sm text-red-500 hover:bg-red-50 active:scale-90 transition-all"
                             >
-                                +1000
+                                AC
                             </Button>
                         </div>
-                        <div className="grid grid-cols-3 gap-3">
+
+                        {/* アクションキー (右1列) */}
+                        <div className="col-span-1 grid grid-rows-3 gap-3">
                             <Button
-                                variant="outline"
-                                size="lg"
-                                onClick={() => handleAddAmount(5000)}
-                                className="h-16 text-lg font-bold"
+                                variant="secondary"
+                                onClick={handleExactAmount}
+                                className="h-full font-black text-blue-800 bg-blue-100 border-2 border-blue-200 rounded-2xl shadow-sm hover:bg-blue-200 active:scale-90 transition-all flex flex-col gap-1 items-center justify-center"
                             >
-                                +5000
+                                <span className="text-xs uppercase opacity-60">ぴったり</span>
+                                <span className="text-2xl">現計</span>
                             </Button>
                             <Button
-                                variant="outline"
-                                size="lg"
-                                onClick={() => handleAddAmount(10000)}
-                                className="h-16 text-lg font-bold"
+                                onClick={handleComplete}
+                                disabled={isInsufficient || isProcessing}
+                                className={cn(
+                                    "row-span-2 h-full rounded-2xl shadow-xl active:scale-95 transition-all flex flex-col items-center justify-center gap-2",
+                                    isInsufficient || isProcessing
+                                        ? "bg-gray-100 text-gray-400 cursor-not-allowed grayscale"
+                                        : "bg-green-600 hover:bg-green-700 text-white ring-4 ring-green-100"
+                                )}
                             >
-                                +10000
-                            </Button>
-                            <Button
-                                variant="outline"
-                                size="lg"
-                                onClick={handleClear}
-                                className="h-16 text-lg font-bold text-red-500 hover:text-red-600 hover:bg-red-50"
-                            >
-                                C
+                                <Check className="h-10 w-10 mb-1" />
+                                <span className="text-2xl font-black leading-tight">
+                                    {isProcessing ? '受注中' : '会計'}
+                                    <br />
+                                    {isProcessing ? '...' : '完了'}
+                                </span>
                             </Button>
                         </div>
                     </div>
 
-                    {/* お釣り */}
-                    <Card className={cn(
-                        isInsufficient ? 'border-2 border-red-500 bg-red-50' : 'bg-green-50'
-                    )}>
-                        <CardContent className="pt-6 text-center">
-                            <p className="text-sm text-gray-600 mb-2">
-                                {isInsufficient ? '不足金額' : 'お釣り'}
-                            </p>
-                            <p className={cn(
-                                "text-4xl font-bold",
-                                isInsufficient ? 'text-red-600' : 'text-green-600'
-                            )}>
-                                ¥{Math.abs(change).toLocaleString()}
-                            </p>
-                        </CardContent>
-                    </Card>
-
                     {/* エラー表示 */}
                     {error && (
-                        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
-                            <p className="text-sm text-red-600">{error}</p>
+                        <div className="bg-red-600 text-white text-sm font-black py-4 px-6 rounded-2xl shadow-lg animate-bounce text-center">
+                            ⚠️ {error}
                         </div>
                     )}
-
-                    {/* 会計完了ボタン */}
-                    <Button
-                        onClick={handleComplete}
-                        disabled={isInsufficient || isProcessing}
-                        className={cn(
-                            "w-full h-14 text-lg font-bold",
-                            isInsufficient || isProcessing
-                                ? "bg-gray-300 cursor-not-allowed"
-                                : "bg-green-600 hover:bg-green-700"
-                        )}
-                    >
-                        <Check className="mr-2 h-6 w-6" />
-                        {isProcessing ? '処理中...' : '会計を完了する'}
-                    </Button>
                 </div>
             </main>
         </div>
