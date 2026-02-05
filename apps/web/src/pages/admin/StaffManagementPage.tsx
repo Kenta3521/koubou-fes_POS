@@ -123,6 +123,7 @@ export default function StaffManagementPage() {
             case Role.STAFF:
                 return <Badge variant="secondary">スタッフ</Badge>;
             case Role.PENDING:
+            case Role.TMP:
                 return <Badge variant="outline" className="text-amber-500 border-amber-500">承認待ち</Badge>;
             default:
                 return <Badge variant="outline">{role}</Badge>;
@@ -173,7 +174,7 @@ export default function StaffManagementPage() {
                                             <TableCell>{getRoleBadge(member.role)}</TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex justify-end gap-2">
-                                                    {member.role === Role.PENDING ? (
+                                                    {(member.role === Role.PENDING || member.role === Role.TMP) ? (
                                                         <Button
                                                             size="sm"
                                                             variant="default"
@@ -194,6 +195,7 @@ export default function StaffManagementPage() {
                                                             <SelectContent>
                                                                 <SelectItem value={Role.ADMIN}>管理者</SelectItem>
                                                                 <SelectItem value={Role.STAFF}>スタッフ</SelectItem>
+                                                                <SelectItem value={Role.TMP}>承認待ち</SelectItem>
                                                             </SelectContent>
                                                         </Select>
                                                     )}

@@ -4,6 +4,7 @@ export enum Role {
     ADMIN = 'ADMIN',
     STAFF = 'STAFF',
     PENDING = 'PENDING',
+    TMP = 'TMP',
 }
 
 export enum UserStatus {

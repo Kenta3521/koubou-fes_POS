@@ -8,6 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Store, LogOut } from 'lucide-react';
 import { api } from '@/lib/api';
 import { AxiosError } from 'axios';
+import { Role } from '@koubou-fes-pos/shared';
+import { Badge } from '@/components/ui/badge';
 
 export default function SelectOrganizationPage() {
     const { user, setActiveOrganization, logout, addOrganization } = useAuthStore();
@@ -117,15 +119,27 @@ export default function SelectOrganizationPage() {
                     {user.organizations.map((userOrg) => (
                         <Card
                             key={userOrg.id}
-                            className="cursor-pointer hover:bg-muted/50 transition-colors"
-                            onClick={() => handleSelect(userOrg.id)}
+                            className={`transition-colors ${userOrg.role === Role.TMP
+                                    ? 'opacity-60 cursor-not-allowed bg-muted'
+                                    : 'cursor-pointer hover:bg-muted/50'
+                                }`}
+                            onClick={() => {
+                                if (userOrg.role !== Role.TMP) {
+                                    handleSelect(userOrg.id);
+                                }
+                            }}
                         >
                             <CardContent className="flex items-center p-4 sm:p-6 space-x-3 sm:space-x-4">
                                 <div className="p-2 sm:p-3 bg-primary/10 rounded-full">
                                     <Store className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                                 </div>
-                                <div>
-                                    <h3 className="font-semibold text-sm sm:text-base">{userOrg.name}</h3>
+                                <div className="flex-1">
+                                    <div className="flex items-center justify-between">
+                                        <h3 className="font-semibold text-sm sm:text-base">{userOrg.name}</h3>
+                                        {userOrg.role === Role.TMP && (
+                                            <Badge variant="secondary" className="text-xs">承認待ち</Badge>
+                                        )}
+                                    </div>
                                     <p className="text-xs sm:text-sm text-muted-foreground capitalize">
                                         {userOrg.role.toLowerCase()}
                                     </p>

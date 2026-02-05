@@ -38,6 +38,7 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Link, useLocation } from 'react-router-dom';
 import { Role } from '@koubou-fes-pos/shared';
+import { Badge } from '@/components/ui/badge';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 
 export function AppSidebar() {
@@ -114,14 +115,22 @@ export function AppSidebar() {
                                     {user?.organizations?.map((org) => (
                                         <DropdownMenuItem
                                             key={org.id}
-                                            onClick={() => handleOrgSwitchClick(org.id)}
-                                            className="gap-2 p-2"
+                                            onClick={() => {
+                                                if (org.role !== Role.TMP) {
+                                                    handleOrgSwitchClick(org.id);
+                                                }
+                                            }}
+                                            disabled={org.role === Role.TMP}
+                                            className={`gap-2 p-2 ${org.role === Role.TMP ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}
                                         >
                                             <div className="flex size-6 items-center justify-center rounded-sm border">
                                                 <Store className="size-4 shrink-0" />
                                             </div>
-                                            {org.name}
-                                            {activeOrganizationId === org.id && (
+                                            <span className="truncate flex-1">{org.name}</span>
+                                            {org.role === Role.TMP && (
+                                                <Badge variant="outline" className="text-[10px] h-5 px-1 ml-auto">承認待ち</Badge>
+                                            )}
+                                            {activeOrganizationId === org.id && org.role !== Role.TMP && (
                                                 <Check className="ml-auto h-4 w-4" />
                                             )}
                                         </DropdownMenuItem>

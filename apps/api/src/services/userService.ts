@@ -103,7 +103,7 @@ export async function joinOrganization(
         data: {
             userId,
             organizationId: organization.id,
-            role: 'STAFF', // Role.STAFF を使用したいが enum import が別途必要かも。文字列で通るか確認。
+            role: 'TMP',
         },
     });
 

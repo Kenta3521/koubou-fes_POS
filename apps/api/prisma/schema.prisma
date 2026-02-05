@@ -193,6 +193,7 @@ enum Role {
   ADMIN
   STAFF
   PENDING
+  TMP
 }
 
 enum UserStatus {
