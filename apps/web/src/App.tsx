@@ -15,6 +15,8 @@ import SelectOrganizationPage from './pages/auth/SelectOrganizationPage';
 import SettingsPage from './pages/settings/SettingsPage';
 import OrderEntryPage from './pages/pos/OrderEntryPage';
 import OrderConfirmationPage from './pages/pos/OrderConfirmationPage';
+import CashPaymentPage from './pages/pos/CashPaymentPage';
+import CompletionPage from './pages/pos/CompletionPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -78,6 +80,8 @@ function App() {
                 {/* POS Routes */}
                 <Route path="/pos" element={<OrderEntryPage />} />
                 <Route path="/pos/confirm" element={<OrderConfirmationPage />} />
+                <Route path="/pos/payment/cash" element={<CashPaymentPage />} />
+                <Route path="/pos/complete" element={<CompletionPage />} />
                 {/* 今後追加されるルートはここに追加 */}
               </Route>
             </Route>
