@@ -82,7 +82,7 @@ export default function OrderEntryPage() {
 
     // 会計へ進む
     const handleCheckout = () => {
-        navigate('/pos/payment');
+        navigate('/pos/confirm');
     };
 
     return (

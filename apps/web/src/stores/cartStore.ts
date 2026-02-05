@@ -18,12 +18,14 @@ export interface CartItem {
 // カート状態
 interface CartState {
     items: CartItem[];
+    currentOrganizationId: string | null; // 現在のカートが属する組織ID
 
     // Actions
     addItem: (product: { id: string; name: string; price: number; categoryId: string }) => void;
     removeItem: (productId: string) => void;
     updateQuantity: (productId: string, quantity: number) => void;
     clearCart: () => void;
+    setOrganization: (organizationId: string) => void; // 組織切り替え時にカートをクリア
 
     // Getters (computed values)
     getTotal: () => number;
@@ -32,6 +34,7 @@ interface CartState {
 
 export const useCartStore = create<CartState>((set, get) => ({
     items: [],
+    currentOrganizationId: null,
 
     // 商品をカートに追加（既存の場合は数量+1）
     addItem: (product) => set((state) => {
@@ -85,6 +88,22 @@ export const useCartStore = create<CartState>((set, get) => ({
 
     // カートをクリア
     clearCart: () => set({ items: [] }),
+
+    // 組織を設定（組織が変わった場合はカートをクリア）
+    setOrganization: (organizationId: string) => set((state) => {
+        if (state.currentOrganizationId && state.currentOrganizationId !== organizationId) {
+            // 組織が変更された場合、カートをクリア
+            console.log(`Organization changed from ${state.currentOrganizationId} to ${organizationId}. Clearing cart.`);
+            return {
+                currentOrganizationId: organizationId,
+                items: []
+            };
+        }
+        // 初回設定または同じ組織の場合
+        return {
+            currentOrganizationId: organizationId
+        };
+    }),
 
     // 合計金額を取得
     getTotal: () => {

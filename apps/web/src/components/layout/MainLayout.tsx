@@ -1,9 +1,23 @@
+import { useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from './AppSidebar';
 import { Separator } from '@/components/ui/separator';
+import { useAuthStore } from '@/stores/authStore';
+import { useCartStore } from '@/stores/cartStore';
 
 export function MainLayout() {
+    const { activeOrganizationId } = useAuthStore();
+    const { setOrganization } = useCartStore();
+
+    // アプリ起動時やリロード時に、カートの組織IDを同期
+    useEffect(() => {
+        if (activeOrganizationId) {
+            console.log('[MainLayout] Syncing cart organization to:', activeOrganizationId);
+            setOrganization(activeOrganizationId);
+        }
+    }, [activeOrganizationId, setOrganization]);
+
     return (
         <SidebarProvider>
             <AppSidebar />

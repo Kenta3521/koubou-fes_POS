@@ -165,16 +165,72 @@ async function main() {
         ],
     });
 
-    // 団体1の割引設定
+    // 商品IDを取得（割引の対象指定のため）
+    const yakisobaNormal = await prisma.product.findFirst({ where: { name: '焼きそば（並）', organizationId: org1.id } });
+    const cola = await prisma.product.findFirst({ where: { name: 'コーラ', organizationId: org1.id } });
+
+    // 団体1の割引設定 (Advanced)
+    console.log('Creating advanced discount settings for org1...');
+
+    // 1. スタッフ割 (手動・注文全体)
     await prisma.discount.create({
         data: {
             organizationId: org1.id,
-            name: '学生割引',
+            name: 'スタッフ割',
             type: 'FIXED',
-            value: 50,
+            value: 200,
+            targetType: 'ORDER_TOTAL',
+            triggerType: 'MANUAL',
+            conditionType: 'NONE',
             isActive: true,
+            priority: 0,
         },
     });
+
+    // 2. 焼きそばタイムセール (自動・特定商品・時間限定)
+    if (yakisobaNormal) {
+        // 今日の日付を取得し、12:00-13:00を設定（テスト用に幅広くするなら現在時刻含むように調整可能だが、仕様通りに）
+        // テストしやすくするため、現在時刻の前後に設定します（有効な状態）
+        const now = new Date();
+        const validFrom = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0); // 今日の0時
+        const validTo = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59); // 今日の23:59
+
+        await prisma.discount.create({
+            data: {
+                organizationId: org1.id,
+                name: '焼きそばタイムセール',
+                type: 'FIXED',
+                value: 50,
+                targetType: 'SPECIFIC_PROD',
+                targetProductId: yakisobaNormal.id,
+                triggerType: 'AUTO',
+                conditionType: 'NONE',
+                validFrom: validFrom,
+                validTo: validTo,
+                isActive: true,
+                priority: 10,
+            },
+        });
+    }
+
+    // 3. コーラまとめ買い (自動・特定商品・個数条件)
+    if (cola) {
+        await prisma.discount.create({
+            data: {
+                organizationId: org1.id,
+                name: 'コーラ3本以上で割引',
+                type: 'FIXED',
+                value: 30, // 1本あたり30円引き？ 仕様等はロジック依存だが、ここではマスタデータとして作成
+                targetType: 'SPECIFIC_PROD',
+                targetProductId: cola.id,
+                triggerType: 'AUTO',
+                conditionType: 'MIN_QUANTITY',
+                conditionValue: 3,
+                isActive: true,
+                priority: 5,
+            },
+        });
+    }
 
     // テスト用団体2: たこ焼き同好会
     console.log('Creating test organization 2: たこ焼き同好会...');

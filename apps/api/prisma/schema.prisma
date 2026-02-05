@@ -67,6 +67,7 @@ model Product {
   organization   Organization      @relation(fields: [organizationId], references: [id])
   stockLogs      StockLog[]
   items          TransactionItem[]
+  targetedDiscounts Discount[]
 }
 
 model StockLog {
@@ -78,15 +79,59 @@ model StockLog {
   product      Product           @relation(fields: [productId], references: [id])
 }
 
+// 新規 Enum: 割引の適用対象
+enum DiscountTargetType {
+  ORDER_TOTAL      // 注文全体（既存）
+  SPECIFIC_PROD    // 特定の商品
+  CATEGORY         // 特定のカテゴリ（将来拡張用）
+}
+
+// 新規 Enum: 割引の適用条件（ロジック判定用）
+enum DiscountConditionType {
+  NONE             // 無条件
+  MIN_QUANTITY     // 最低個数（例: 3個以上）
+  MIN_AMOUNT       // 最低金額（例: 1000円以上）
+}
+
+// 新規 Enum: 適用トリガー（手動/自動）
+enum DiscountTriggerType {
+  MANUAL           // 手動選択（ボタン押下等で適用）
+  AUTO             // 自動適用（条件を満たした瞬間に適用）
+}
+
 model Discount {
-  id             String        @id @default(uuid())
+  id             String                @id @default(uuid())
   organizationId String
-  name           String
-  type           DiscountType
-  value          Int
-  isActive       Boolean       @default(true)
-  organization   Organization  @relation(fields: [organizationId], references: [id])
+  organization   Organization          @relation(fields: [organizationId], references: [id])
+  
+  name           String                // 割引名
+  type           DiscountType          // FIXED (定額), PERCENT (定率)
+  value          Int                   // 割引値
+  
+  // --- 対象設定 ---
+  targetType     DiscountTargetType    @default(ORDER_TOTAL)
+  
+  // SPECIFIC_PROD の場合の対象商品ID（NULL可）
+  targetProductId String?
+  product         Product?             @relation(fields: [targetProductId], references: [id])
+
+  // --- 条件設定 ---
+  conditionType  DiscountConditionType @default(NONE)
+  conditionValue Int                   @default(0) // 閾値（3個、1000円など）
+  
+  // --- トリガー設定（新規追加） ---
+  triggerType    DiscountTriggerType   @default(MANUAL) // 手動か自動か
+  
+  // --- 有効期間設定（新規追加） ---
+  validFrom      DateTime?             // 開始日時（NULLなら無期限/即時）
+  validTo        DateTime?             // 終了日時（NULLなら無期限）
+  
+  priority       Int                   @default(0) // 優先度（特に自動適用時の競合解決用）
+  // -------------------
+
+  isActive       Boolean               @default(true) // マスタとしての有効無効
   transactions   Transaction[]
+  transactionItems TransactionItem[]
 }
 
 model Transaction {
@@ -114,6 +159,10 @@ model TransactionItem {
   unitPrice     Int
   product       Product     @relation(fields: [productId], references: [id])
   transaction   Transaction @relation(fields: [transactionId], references: [id])
+  originalPrice     Int               @default(0) // Default added to avoid migration issues on existing data, though logic should enforce it
+  discountAmount    Int               @default(0)
+  appliedDiscountId String?
+  discount          Discount?         @relation(fields: [appliedDiscountId], references: [id])
 }
 
 model CashReport {

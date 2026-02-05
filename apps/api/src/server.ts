@@ -6,8 +6,7 @@ import dotenv from 'dotenv';
 import { createLogger } from './utils/logger.js';
 import authRoutes from './routes/auth.js';
 import usersRoutes from './routes/users.js';
-import categoryRoutes from './routes/categories.js';
-import productRoutes from './routes/products.js';
+import organizationRoutes from './routes/organizations.js';
 
 
 
@@ -51,8 +50,7 @@ app.get('/health', (_req: Request, res: Response) => {
 // API routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', usersRoutes);
-app.use('/api/v1/organizations/:orgId/categories', categoryRoutes);
-app.use('/api/v1/organizations/:orgId/products', productRoutes);
+app.use('/api/v1/organizations', organizationRoutes);
 
 
 

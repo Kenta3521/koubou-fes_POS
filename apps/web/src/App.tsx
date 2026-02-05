@@ -14,6 +14,7 @@ import NotFoundPage from './pages/NotFoundPage';
 import SelectOrganizationPage from './pages/auth/SelectOrganizationPage';
 import SettingsPage from './pages/settings/SettingsPage';
 import OrderEntryPage from './pages/pos/OrderEntryPage';
+import OrderConfirmationPage from './pages/pos/OrderConfirmationPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -76,6 +77,7 @@ function App() {
                 <Route path="/settings" element={<SettingsPage />} />
                 {/* POS Routes */}
                 <Route path="/pos" element={<OrderEntryPage />} />
+                <Route path="/pos/confirm" element={<OrderConfirmationPage />} />
                 {/* 今後追加されるルートはここに追加 */}
               </Route>
             </Route>

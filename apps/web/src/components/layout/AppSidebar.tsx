@@ -13,6 +13,7 @@ import {
     Check
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
+import { useCartStore } from '@/stores/cartStore';
 import {
     Sidebar,
     SidebarContent,
@@ -40,6 +41,7 @@ import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 
 export function AppSidebar() {
     const { user, logout, activeOrganizationId, setActiveOrganization } = useAuthStore();
+    const { setOrganization: setCartOrganization } = useCartStore();
     const location = useLocation();
 
     const [orgSwitchDialogOpen, setOrgSwitchDialogOpen] = React.useState(false);
@@ -61,9 +63,12 @@ export function AppSidebar() {
 
     const confirmOrgSwitch = () => {
         if (targetOrgId) {
+            console.log('[AppSidebar] Switching organization from', activeOrganizationId, 'to', targetOrgId);
             setActiveOrganization(targetOrgId);
+            setCartOrganization(targetOrgId); // カートをクリア
             setTargetOrgId(null);
             setOrgSwitchDialogOpen(false);
+            console.log('[AppSidebar] Organization switch complete');
             // ダッシュボードへリダイレクトするなどが必要ならここで行う
             // window.location.href = '/'; // 完全リロードする場合
         }

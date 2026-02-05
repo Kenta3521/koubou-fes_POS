@@ -33,7 +33,10 @@ export const useAuthStore = create<AuthState>()(
                 // P1-020では選択画面を出すのが目的なので、明示的にnullのままにしておく（すでにnull初期化されている）。
             }),
 
-            setActiveOrganization: (orgId) => set({ activeOrganizationId: orgId }),
+            setActiveOrganization: (orgId) => {
+                console.log('[AuthStore] Setting active organization:', orgId);
+                set({ activeOrganizationId: orgId });
+            },
 
             logout: () => set({
                 token: null,
