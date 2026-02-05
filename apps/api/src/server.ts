@@ -35,7 +35,12 @@ const limiter = rateLimit({
 app.use('/api', limiter);
 
 // Body parsing middleware
-app.use(express.json());
+// Capture raw body for webhook signature verification
+app.use(express.json({
+    verify: (req: any, _res, buf) => {
+        req.rawBody = buf;
+    }
+}));
 app.use(express.urlencoded({ extended: true }));
 
 // Health check endpoint
@@ -51,6 +56,8 @@ app.get('/health', (_req: Request, res: Response) => {
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', usersRoutes);
 app.use('/api/v1/organizations', organizationRoutes);
+import webhookRoutes from './routes/webhooks.js';
+app.use('/api/v1/webhooks', webhookRoutes);
 
 
 
@@ -86,7 +93,13 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
 });
 
 // Start server
-app.listen(PORT, () => {
+import { createServer } from 'http';
+import { initSocket } from './lib/socket.js';
+
+const httpServer = createServer(app);
+initSocket(httpServer);
+
+httpServer.listen(PORT, () => {
     logger.info(`🚀 Server running on http://localhost:${PORT}`);
     logger.info(`📊 Health check: http://localhost:${PORT}/health`);
     logger.info(`🔌 API endpoint: http://localhost:${PORT}/api/v1`);

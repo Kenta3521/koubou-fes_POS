@@ -3,6 +3,7 @@ import { calculateOrder } from '../services/calculationService.js';
 import { completeTransaction } from '../services/transactionService.js';
 import { TransactionStatus } from '@prisma/client';
 import prisma from '../utils/prisma.js';
+import { PAYPAY } from '../lib/paypay.js';
 
 export const calculate = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -216,3 +217,264 @@ export const completeCashPayment = async (req: Request, res: Response, next: Nex
     }
 };
 
+/**
+ * PayPay決済開始
+ * POST /api/v1/organizations/:orgId/transactions/:id/paypay/create
+ * P3-004
+ */
+export const createPayPayPayment = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { orgId, id: transactionId } = req.params;
+
+        // 取引を取得
+        const transaction = await prisma.transaction.findUnique({
+            where: { id: transactionId },
+            include: { organization: true }
+        });
+
+        if (!transaction) {
+            return res.status(404).json({
+                success: false,
+                error: { code: 'TXN_NOT_FOUND', message: '取引が見つかりません' }
+            });
+        }
+
+        if (transaction.organizationId !== orgId) {
+            return res.status(403).json({
+                success: false,
+                error: { code: 'ORGANIZATION_MISMATCH', message: 'この取引は別の組織に属しています' }
+            });
+        }
+
+        if (transaction.status !== TransactionStatus.PENDING) {
+            return res.status(400).json({
+                success: false,
+                error: { code: 'TXN_NOT_PENDING', message: 'この取引は既に完了またはキャンセルされています' }
+            });
+        }
+
+        // 既にPayPayオーダーIDがある場合（再試行時など）、念のため上書きするかそのまま使うか
+        // ここでは新規にIDを生成して一意性を担保する
+        const merchantPaymentId = `${transactionId.substring(0, 8)}-${Date.now()}`;
+
+        const payload = {
+            merchantPaymentId,
+            amount: {
+                amount: transaction.totalAmount,
+                currency: 'JPY',
+            },
+            codeType: 'ORDER_QR',
+            orderDescription: `${transaction.organization.name} でのお会計`,
+            isAuthorization: false,
+            // 決済完了時のコールバックURL（必要に応じて設定）
+            // redirectionUrl: `${process.env.FRONTEND_URL}/pos/payment/paypay/callback`,
+            // redirectionType: 'APP_DEEP_LINK',
+        };
+
+        const response = await (PAYPAY as any).QRCodeCreate(payload);
+
+        if (response.BODY && response.BODY.resultInfo && response.BODY.resultInfo.code === 'SUCCESS') {
+            // DBを更新
+            await prisma.transaction.update({
+                where: { id: transactionId },
+                data: {
+                    paypayOrderId: merchantPaymentId,
+                    paypayCodeId: response.BODY.data.codeId // codeIdを保存
+                }
+            });
+
+            res.json({
+                success: true,
+                data: {
+                    qrCodeUrl: response.BODY.data.url,
+                    deepLink: response.BODY.data.deeplink,
+                    expiresAt: response.BODY.data.expiryDate,
+                    merchantPaymentId
+                }
+            });
+        } else {
+            console.error('PayPay API error:', response.BODY?.resultInfo || response);
+            res.status(500).json({
+                success: false,
+                error: {
+                    code: 'PAYPAY_CREATE_FAILED',
+                    message: 'PayPay QRコードの作成に失敗しました',
+                    details: response.BODY?.resultInfo
+                }
+            });
+        }
+    } catch (error: any) {
+        console.error('PayPay creation error:', error);
+        next(error);
+    }
+};
+
+/**
+ * 取引キャンセル
+ * POST /api/v1/organizations/:orgId/transactions/:id/cancel
+ * P3-011
+ */
+export const cancelTransaction = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { orgId, id: transactionId } = req.params;
+        const userId = req.user?.id;
+
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                error: {
+                    code: 'UNAUTHORIZED',
+                    message: 'User not authenticated',
+                },
+            });
+        }
+
+        // ServiceのcancelTransactionは同名で衝突するため、import時にaliasをつけるか、
+        // 上記でimportしているcompleteTransactionと同じ場所からimportされているものと仮定
+        // ここではファイル上部のimportを修正する必要があるため、一旦関数名で呼ぶ
+        const { cancelTransaction: cancelService } = await import('../services/transactionService.js');
+        const canceledTransaction = await cancelService(transactionId, userId, orgId);
+
+        res.json({
+            success: true,
+            data: canceledTransaction,
+        });
+    } catch (error: any) {
+        console.error('Cancel transaction error:', error);
+
+        if (error.message === 'TRANSACTION_NOT_FOUND') {
+            return res.status(404).json({
+                success: false,
+                error: {
+                    code: 'TRANSACTION_NOT_FOUND',
+                    message: '取引が見つかりません',
+                },
+            });
+        }
+
+        if (error.message === 'ORGANIZATION_MISMATCH') {
+            return res.status(403).json({
+                success: false,
+                error: {
+                    code: 'ORGANIZATION_MISMATCH',
+                    message: 'この取引は別の組織に属しています',
+                },
+            });
+        }
+
+        if (error.message === 'USER_NOT_MEMBER') {
+            return res.status(403).json({
+                success: false,
+                error: {
+                    code: 'USER_NOT_MEMBER',
+                    message: 'この組織のメンバーではありません',
+                },
+            });
+        }
+
+        if (error.message === 'TRANSACTION_NOT_PENDING') {
+            return res.status(400).json({
+                success: false,
+                error: {
+                    code: 'TRANSACTION_NOT_PENDING',
+                    message: 'この取引はキャンセルできません（完了済みまたは既にキャンセル済み）',
+                },
+            });
+        }
+
+        next(error);
+    }
+};
+
+/**
+ * PayPay決済状態確認
+ * GET /api/v1/organizations/:orgId/transactions/:id/paypay/status
+ * P3-016
+ */
+export const checkPayPayStatus = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { orgId, id: transactionId } = req.params;
+        const userId = req.user?.id;
+
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                error: { code: 'UNAUTHORIZED', message: 'User not authenticated' }
+            });
+        }
+
+        const transaction = await prisma.transaction.findUnique({
+            where: { id: transactionId },
+            include: { organization: true }
+        });
+
+        if (!transaction) {
+            return res.status(404).json({
+                success: false,
+                error: { code: 'TXN_NOT_FOUND', message: '取引が見つかりません' }
+            });
+        }
+
+        if (transaction.organizationId !== orgId) {
+            return res.status(403).json({
+                success: false,
+                error: { code: 'ORGANIZATION_MISMATCH', message: 'この取引は別の組織に属しています' }
+            });
+        }
+
+        if (!transaction.paypayOrderId) {
+            return res.status(400).json({
+                success: false,
+                error: { code: 'NO_PAYPAY_ORDER', message: 'PayPay Order IDがありません' }
+            });
+        }
+
+        // Call PayPay API to get payment details
+        const detailsResponse = await (PAYPAY as any).GetPaymentDetails([transaction.paypayOrderId]);
+
+        // Note: The SDK response structure usually contains BODY or actual response depending on version.
+        // Based on previous createPayPayPayment, we expect response.BODY.
+
+        let paypayStatus = 'UNKNOWN';
+        if (detailsResponse.BODY && detailsResponse.BODY.resultInfo.code === 'SUCCESS') {
+            paypayStatus = detailsResponse.BODY.data.status;
+        } else {
+            console.error('PayPay Status Check Failed:', detailsResponse.BODY || detailsResponse);
+            // Not returning error to client, but unknown status
+        }
+
+        console.log(`PayPay Status for ${transactionId}: ${paypayStatus}, Local Status: ${transaction.status}`);
+
+        // If PayPay is COMPLETED but local is PENDING, synchronize.
+        if (paypayStatus === 'COMPLETED' && transaction.status === TransactionStatus.PENDING) {
+            console.log(`Synching transaction ${transactionId} to COMPLETED via status check.`);
+            await completeTransaction(transactionId, transaction.userId, orgId); // Using transaction.userId as owner
+
+            // Re-fetch to get updated data
+            const updatedTx = await prisma.transaction.findUnique({
+                where: { id: transactionId }
+            });
+            return res.json({
+                success: true,
+                data: {
+                    status: updatedTx?.status,
+                    paypayStatus,
+                    synced: true
+                }
+            });
+        }
+
+        res.json({
+            success: true,
+            data: {
+                status: transaction.status,
+                paypayStatus,
+                synced: false
+            }
+        });
+
+    } catch (error: any) {
+        console.error('Check PayPay status error:', error);
+        next(error);
+    }
+};

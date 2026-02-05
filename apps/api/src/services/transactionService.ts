@@ -98,3 +98,82 @@ export const completeTransaction = async (
         return completedTransaction;
     });
 };
+
+/**
+ * 取引をキャンセルする
+ * P3-011
+ * PayPay決済のQRコードがある場合は削除する
+ */
+export const cancelTransaction = async (
+    transactionId: string,
+    userId: string,
+    organizationId: string
+) => {
+    // 1. 取引を取得
+    const transaction = await prisma.transaction.findUnique({
+        where: { id: transactionId },
+    });
+
+    if (!transaction) {
+        throw new Error('TRANSACTION_NOT_FOUND');
+    }
+
+    // 2. 組織チェック
+    if (transaction.organizationId !== organizationId) {
+        throw new Error('ORGANIZATION_MISMATCH');
+    }
+
+    // 3. ユーザーの組織所属チェック
+    const membership = await prisma.userOrganization.findUnique({
+        where: {
+            userId_organizationId: {
+                userId,
+                organizationId,
+            },
+        },
+    });
+
+    if (!membership) {
+        throw new Error('USER_NOT_MEMBER');
+    }
+
+    // 4. ステータスチェック
+    if (transaction.status !== TransactionStatus.PENDING) {
+        // 既にキャンセル済みの場合は成功として扱う（冪等性）
+        if (transaction.status === TransactionStatus.CANCELLED) {
+            return transaction;
+        }
+        throw new Error('TRANSACTION_NOT_PENDING');
+    }
+
+    // 5. PayPayコードがある場合は削除
+    if (transaction.paypayCodeId) {
+        try {
+            // ここで循環参照を避けるために動的インポートまたは注入をするのが理想だが、
+            // 簡易的にlibから直接インポートする形をとる（Service -> Lib はOK）
+            const { PAYPAY } = await import('../lib/paypay.js');
+            await (PAYPAY as any).QRCodeDelete({
+                codeId: transaction.paypayCodeId,
+            });
+            console.log(`PayPay QR code ${transaction.paypayCodeId} deleted.`);
+        } catch (error) {
+            console.error('Failed to delete PayPay QR code:', error);
+            // PayPay側の削除失敗を理由にキャンセル自体を失敗させるかどうかは要件次第だが、
+            // ここではログ出力に留めてDB側のキャンセルは続行する（整合性優先）
+        }
+    }
+
+    // 6. ステータスをキャンセルに更新
+    const canceledTransaction = await prisma.transaction.update({
+        where: { id: transactionId },
+        data: {
+            status: TransactionStatus.CANCELLED,
+        },
+        include: {
+            items: true,
+            discount: true,
+        },
+    });
+
+    return canceledTransaction;
+};

@@ -143,6 +143,7 @@ model Transaction {
   discountId     String?
   paymentMethod  PaymentMethod
   paypayOrderId  String?           @unique
+  paypayCodeId   String?           @unique
   status         TransactionStatus @default(PENDING)
   createdAt      DateTime          @default(now())
   discount       Discount?         @relation(fields: [discountId], references: [id])
