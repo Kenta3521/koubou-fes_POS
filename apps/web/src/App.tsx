@@ -21,6 +21,8 @@ import CompletionPage from './pages/pos/CompletionPage';
 import CategoryManagementPage from './pages/admin/CategoryManagementPage';
 import ProductManagementPage from './pages/admin/ProductManagementPage';
 import DiscountManagementPage from './pages/admin/DiscountManagementPage';
+import StaffManagementPage from './pages/admin/StaffManagementPage';
+import RequireOrgAdmin from './components/auth/RequireOrgAdmin';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -87,10 +89,13 @@ function App() {
                 <Route path="/pos/payment/cash" element={<CashPaymentPage />} />
                 <Route path="/pos/payment/paypay" element={<PayPayPaymentPage />} />
                 <Route path="/pos/complete" element={<CompletionPage />} />
-                {/* 今後追加されるルートはここに追加 */}
-                <Route path="/admin/:orgId/categories" element={<CategoryManagementPage />} />
-                <Route path="/admin/:orgId/products" element={<ProductManagementPage />} />
-                <Route path="/admin/:orgId/discounts" element={<DiscountManagementPage />} />
+                {/* Admin Routes */}
+                <Route element={<RequireOrgAdmin />}>
+                  <Route path="/admin/:orgId/categories" element={<CategoryManagementPage />} />
+                  <Route path="/admin/:orgId/products" element={<ProductManagementPage />} />
+                  <Route path="/admin/:orgId/discounts" element={<DiscountManagementPage />} />
+                  <Route path="/admin/:orgId/staff" element={<StaffManagementPage />} />
+                </Route>
 
               </Route>
             </Route>

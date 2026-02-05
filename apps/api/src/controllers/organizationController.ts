@@ -41,3 +41,41 @@ export async function listOrganizations(req: Request, res: Response): Promise<vo
         });
     }
 }
+
+/**
+ * 団体詳細取得
+ * GET /api/v1/organizations/:orgId
+ */
+export async function getOrganization(req: Request, res: Response): Promise<void> {
+    const { orgId } = req.params;
+    try {
+        const organization = await prisma.organization.findUnique({
+            where: { id: orgId },
+        });
+
+        if (!organization) {
+            res.status(404).json({
+                success: false,
+                error: {
+                    code: 'NOT_FOUND',
+                    message: '団体が見つかりません',
+                },
+            });
+            return;
+        }
+
+        res.status(200).json({
+            success: true,
+            data: organization,
+        });
+    } catch (error) {
+        logger.error('Get organization error:', error);
+        res.status(500).json({
+            success: false,
+            error: {
+                code: 'INTERNAL_ERROR',
+                message: '団体の取得に失敗しました',
+            },
+        });
+    }
+}

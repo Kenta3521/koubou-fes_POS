@@ -37,6 +37,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Link, useLocation } from 'react-router-dom';
+import { Role } from '@koubou-fes-pos/shared';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 
 export function AppSidebar() {
@@ -68,9 +69,10 @@ export function AppSidebar() {
             setCartOrganization(targetOrgId); // カートをクリア
             setTargetOrgId(null);
             setOrgSwitchDialogOpen(false);
-            console.log('[AppSidebar] Organization switch complete');
-            // ダッシュボードへリダイレクトするなどが必要ならここで行う
-            // window.location.href = '/'; // 完全リロードする場合
+            console.log('[AppSidebar] Organization switch complete. Redirecting to dashboard...');
+
+            // 団体切り替え後はダッシュボードへ遷移してリロード
+            window.location.href = '/';
         }
     };
 
@@ -161,48 +163,50 @@ export function AppSidebar() {
                         </SidebarGroupContent>
                     </SidebarGroup>
 
-                    {/* Management Group */}
-                    <SidebarGroup>
-                        <SidebarGroupLabel>Management</SidebarGroupLabel>
-                        <SidebarGroupContent>
-                            <SidebarMenu>
-                                <SidebarMenuItem>
-                                    <SidebarMenuButton asChild isActive={location.pathname.includes('/categories')}>
-                                        <Link to={`/admin/${activeOrganizationId}/categories`}>
-                                            <Tags />
-                                            <span>商品カテゴリ</span>
-                                        </Link>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
-                                <SidebarMenuItem>
-                                    <SidebarMenuButton asChild isActive={location.pathname.includes('/products')}>
-                                        <Link to={`/admin/${activeOrganizationId}/products`}>
-                                            <ListFilter />
-                                            <span>商品管理</span>
-                                        </Link>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
-                                <SidebarMenuItem>
-                                    <SidebarMenuButton asChild isActive={location.pathname.includes('/discounts')}>
-                                        <Link to={`/admin/${activeOrganizationId}/discounts`}>
-                                            <Tags />
-                                            <span>割引管理</span>
-                                        </Link>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
+                    {/* Management Group - Only for Admins or System Admins */}
+                    {(orgRole === Role.ADMIN || user?.isSystemAdmin) && (
+                        <SidebarGroup>
+                            <SidebarGroupLabel>Management</SidebarGroupLabel>
+                            <SidebarGroupContent>
+                                <SidebarMenu>
+                                    <SidebarMenuItem>
+                                        <SidebarMenuButton asChild isActive={location.pathname.includes('/categories')}>
+                                            <Link to={`/admin/${activeOrganizationId}/categories`}>
+                                                <Tags />
+                                                <span>商品カテゴリ</span>
+                                            </Link>
+                                        </SidebarMenuButton>
+                                    </SidebarMenuItem>
+                                    <SidebarMenuItem>
+                                        <SidebarMenuButton asChild isActive={location.pathname.includes('/products')}>
+                                            <Link to={`/admin/${activeOrganizationId}/products`}>
+                                                <ListFilter />
+                                                <span>商品管理</span>
+                                            </Link>
+                                        </SidebarMenuButton>
+                                    </SidebarMenuItem>
+                                    <SidebarMenuItem>
+                                        <SidebarMenuButton asChild isActive={location.pathname.includes('/discounts')}>
+                                            <Link to={`/admin/${activeOrganizationId}/discounts`}>
+                                                <Tags />
+                                                <span>割引管理</span>
+                                            </Link>
+                                        </SidebarMenuButton>
+                                    </SidebarMenuItem>
 
-                                <SidebarMenuItem>
-                                    <SidebarMenuButton asChild>
-                                        <Link to="/staff">
-                                            <Users />
-                                            <span>スタッフ</span>
-                                        </Link>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
+                                    <SidebarMenuItem>
+                                        <SidebarMenuButton asChild isActive={location.pathname.includes('/staff')}>
+                                            <Link to={`/admin/${activeOrganizationId}/staff`}>
+                                                <Users />
+                                                <span>スタッフ管理</span>
+                                            </Link>
+                                        </SidebarMenuButton>
+                                    </SidebarMenuItem>
 
-                            </SidebarMenu>
-                        </SidebarGroupContent>
-                    </SidebarGroup>
+                                </SidebarMenu>
+                            </SidebarGroupContent>
+                        </SidebarGroup>
+                    )}
 
                     {/* Settings Group */}
                     <SidebarGroup>

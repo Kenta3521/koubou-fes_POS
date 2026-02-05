@@ -3,6 +3,7 @@
 export enum Role {
     ADMIN = 'ADMIN',
     STAFF = 'STAFF',
+    PENDING = 'PENDING',
 }
 
 export enum UserStatus {
