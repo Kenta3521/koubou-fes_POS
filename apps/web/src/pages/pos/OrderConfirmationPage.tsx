@@ -8,6 +8,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { api } from '@/lib/api';
 import { CalculationResult, CalculatedItem } from '@koubou-fes-pos/shared';
 import { ChevronLeft, Ticket, Banknote, Smartphone } from 'lucide-react';
+import { DiscountSelectionModal } from '@/components/pos/DiscountSelectionModal';
 
 const OrderConfirmationPage: React.FC = () => {
     const navigate = useNavigate();
@@ -17,6 +18,10 @@ const OrderConfirmationPage: React.FC = () => {
     const [calculation, setCalculation] = useState<CalculationResult | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    // Discount modal state
+    const [discountModalOpen, setDiscountModalOpen] = useState(false);
+    const [selectedManualDiscountId, setSelectedManualDiscountId] = useState<string | null>(null);
 
     useEffect(() => {
         if (!activeOrganizationId) return;
@@ -30,9 +35,11 @@ const OrderConfirmationPage: React.FC = () => {
             setError(null); // エラーをリセット
             try {
                 console.log('[OrderConfirmationPage] Fetching calculation for org:', activeOrganizationId);
+                console.log('[OrderConfirmationPage] Manual discount ID:', selectedManualDiscountId);
+
                 const response = await api.post(`/organizations/${activeOrganizationId}/transactions/calculate`, {
                     items: items.map(i => ({ productId: i.productId, quantity: i.quantity })),
-                    // manualDiscountId: ... (P2-015で実装)
+                    manualDiscountId: selectedManualDiscountId || undefined,
                 });
                 setCalculation(response.data.data);
             } catch (err: any) {
@@ -45,7 +52,13 @@ const OrderConfirmationPage: React.FC = () => {
         };
 
         fetchCalculation();
-    }, [activeOrganizationId, items, navigate]);
+    }, [activeOrganizationId, items, navigate, selectedManualDiscountId]);
+
+    const handleDiscountSelect = (discountId: string | null) => {
+        console.log('[OrderConfirmationPage] Discount selected:', discountId);
+        setSelectedManualDiscountId(discountId);
+        setDiscountModalOpen(false);
+    };
 
     if (!activeOrganizationId) return <div>Organization not selected</div>;
     if (isLoading) return <div className="p-4">計算中...</div>;
@@ -129,9 +142,13 @@ const OrderConfirmationPage: React.FC = () => {
                 </Card>
 
                 {/* 割引ボタン (P2-015) */}
-                <Button variant="outline" className="w-full h-12" onClick={() => alert('割引モーダル (P-006) は未実装')}>
+                <Button
+                    variant="outline"
+                    className="w-full h-12"
+                    onClick={() => setDiscountModalOpen(true)}
+                >
                     <Ticket className="mr-2 h-5 w-5" />
-                    クーポン・割引を適用 (P2-015)
+                    {selectedManualDiscountId ? '割引を変更' : 'クーポン・割引を適用'}
                 </Button>
 
             </main>
@@ -155,6 +172,15 @@ const OrderConfirmationPage: React.FC = () => {
                     PayPayで支払う
                 </Button>
             </footer>
+
+            {/* Discount Selection Modal */}
+            <DiscountSelectionModal
+                open={discountModalOpen}
+                onOpenChange={setDiscountModalOpen}
+                currentTotal={calculation?.subtotalAmount || 0}
+                onSelectDiscount={handleDiscountSelect}
+                selectedDiscountId={selectedManualDiscountId}
+            />
         </div>
     );
 };

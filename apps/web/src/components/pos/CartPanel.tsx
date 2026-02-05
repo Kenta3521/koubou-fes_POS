@@ -7,7 +7,7 @@
  */
 
 import { useState } from 'react';
-import { Minus, Plus, Trash2, ShoppingCart, ChevronUp, ChevronDown } from 'lucide-react';
+import { Minus, Plus, Trash2, ShoppingCart, ChevronUp, ChevronDown, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -20,6 +20,7 @@ interface CartPanelProps {
     isMobile?: boolean; // モバイルモードかどうか
     onUpdateQuantity: (productId: string, quantity: number) => void;
     onRemoveItem: (productId: string) => void;
+    onClearCart: () => void;
     onCheckout: () => void;
 }
 
@@ -30,6 +31,7 @@ export function CartPanel({
     isMobile = false,
     onUpdateQuantity,
     onRemoveItem,
+    onClearCart,
     onCheckout,
 }: CartPanelProps) {
     const [isExpanded, setIsExpanded] = useState(false);
@@ -162,6 +164,17 @@ export function CartPanel({
                         )}
                     </div>
                     <div className="flex items-center gap-2">
+                        {hasItems && (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onClearCart();
+                                }}
+                                className="p-1.5 text-gray-500 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        )}
                         <span className="font-bold text-lg text-gray-900">
                             ¥{total.toLocaleString()}
                         </span>
@@ -193,13 +206,26 @@ export function CartPanel({
     return (
         <div className="flex flex-col h-full bg-white shadow-lg">
             {/* ヘッダー */}
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-200 bg-gray-50">
-                <ShoppingCart className="h-5 w-5 text-gray-600" />
-                <span className="font-bold text-gray-900">カート</span>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50">
+                <div className="flex items-center gap-2">
+                    <ShoppingCart className="h-5 w-5 text-gray-600" />
+                    <span className="font-bold text-gray-900">カート</span>
+                    {hasItems && (
+                        <span className="bg-orange-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                            {itemCount}
+                        </span>
+                    )}
+                </div>
                 {hasItems && (
-                    <span className="bg-orange-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-                        {itemCount}
-                    </span>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={onClearCart}
+                        className="h-8 px-2 text-gray-500 hover:text-red-500 hover:bg-red-50"
+                    >
+                        <X className="h-4 w-4 mr-1" />
+                        <span className="text-xs">クリア</span>
+                    </Button>
                 )}
             </div>
 

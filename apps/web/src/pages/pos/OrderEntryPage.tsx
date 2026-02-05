@@ -14,12 +14,10 @@ import { CartPanel } from '@/components/pos/CartPanel';
 import { useCategories } from '@/hooks/useCategories';
 import { useProducts } from '@/hooks/useProducts';
 import { useCartStore } from '@/stores/cartStore';
-import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 export default function OrderEntryPage() {
     const navigate = useNavigate();
-    const { toast } = useToast();
     const isMobile = useIsMobile();
     const isDesktop = !isMobile;
 
@@ -36,6 +34,7 @@ export default function OrderEntryPage() {
         addItem,
         updateQuantity,
         removeItem,
+        clearCart,
         getTotal,
         getItemCount,
     } = useCartStore();
@@ -66,7 +65,7 @@ export default function OrderEntryPage() {
         }
     };
 
-    // 数量変更ハンドラ
+    // 数量更新ハンドラ
     const handleUpdateQuantity = (productId: string, quantity: number) => {
         updateQuantity(productId, quantity);
     };
@@ -74,10 +73,11 @@ export default function OrderEntryPage() {
     // アイテム削除ハンドラ
     const handleRemoveItem = (productId: string) => {
         removeItem(productId);
-        toast({
-            title: 'カートから削除しました',
-            duration: 1500,
-        });
+    };
+
+    // カートクリアハンドラ
+    const handleClearCart = () => {
+        clearCart();
     };
 
     // 会計へ進む
@@ -90,7 +90,7 @@ export default function OrderEntryPage() {
             {/* 商品選択エリア */}
             <div className="flex-1 flex flex-col min-h-0 min-w-0 relative">
                 {/* カテゴリタブ */}
-                <div className="shrink-0 z-10 bg-gray-100">
+                <div className="shrink-0 bg-white border-b border-gray-200 px-2 py-2">
                     <CategoryTabs
                         categories={categories}
                         selectedCategoryId={selectedCategoryId}
@@ -120,6 +120,7 @@ export default function OrderEntryPage() {
                             isMobile={true}
                             onUpdateQuantity={handleUpdateQuantity}
                             onRemoveItem={handleRemoveItem}
+                            onClearCart={handleClearCart}
                             onCheckout={handleCheckout}
                         />
                     </div>
@@ -136,6 +137,7 @@ export default function OrderEntryPage() {
                         isMobile={false}
                         onUpdateQuantity={handleUpdateQuantity}
                         onRemoveItem={handleRemoveItem}
+                        onClearCart={handleClearCart}
                         onCheckout={handleCheckout}
                     />
                 </div>
