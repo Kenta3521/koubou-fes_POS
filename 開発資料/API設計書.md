@@ -409,8 +409,13 @@ POST /api/v1/organizations/:orgId/discounts
 ```json
 {
   "name": "タイムセール",
-  "type": "PERCENT",
-  "value": 10
+  "type": "FIXED",
+  "value": 50,
+  "targetType": "SPECIFIC_PROD",
+  "targetProductId": "prod-uuid",
+  "triggerType": "AUTO",
+  "validFrom": "2026-10-15T12:00:00Z",
+  "validTo": "2026-10-15T13:00:00Z"
 }
 ```
 
@@ -455,7 +460,16 @@ POST /api/v1/organizations/:orgId/transactions
     "discountAmount": 100,
     "paymentMethod": "CASH",
     "status": "PENDING",
-    "items": [...]
+    "items": [
+      {
+        "productId": "prod-uuid-1",
+        "quantity": 2,
+        "unitPrice": 250,
+        "originalPrice": 300,
+        "discountAmount": 50,
+        "appliedDiscountId": "discount-uuid-1"
+      }
+    ]
   }
 }
 ```

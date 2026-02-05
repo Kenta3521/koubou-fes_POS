@@ -13,6 +13,7 @@ import PublicRoute from './components/auth/PublicRoute';
 import NotFoundPage from './pages/NotFoundPage';
 import SelectOrganizationPage from './pages/auth/SelectOrganizationPage';
 import SettingsPage from './pages/settings/SettingsPage';
+import OrderEntryPage from './pages/pos/OrderEntryPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -73,6 +74,8 @@ function App() {
               <Route element={<MainLayout />}>
                 <Route path="/" element={<HomePage />} />
                 <Route path="/settings" element={<SettingsPage />} />
+                {/* POS Routes */}
+                <Route path="/pos" element={<OrderEntryPage />} />
                 {/* 今後追加されるルートはここに追加 */}
               </Route>
             </Route>

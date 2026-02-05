@@ -80,6 +80,29 @@ erDiagram
 | `FIXED` | 定額（例: 100円引き） |
 | `PERCENT` | 定率（例: 10%オフ） |
 
+### 2.7 DiscountTargetType（割引適用対象）
+
+| 値 | 説明 |
+|----|------|
+| `ORDER_TOTAL` | 注文全体 |
+| `SPECIFIC_PROD` | 特定の商品 |
+| `CATEGORY` | 特定のカテゴリ（将来拡張用） |
+
+### 2.8 DiscountConditionType（割引適用条件）
+
+| 値 | 説明 |
+|----|------|
+| `NONE` | 無条件 |
+| `MIN_QUANTITY` | 最低個数（例: 3個以上） |
+| `MIN_AMOUNT` | 最低金額（例: 1000円以上） |
+
+### 2.9 DiscountTriggerType（適用トリガー）
+
+| 値 | 説明 |
+|----|------|
+| `MANUAL` | 手動選択 |
+| `AUTO` | 自動適用 |
+
 ---
 
 ## 3. テーブル定義
@@ -183,6 +206,14 @@ erDiagram
 | name | String | NOT NULL | 割引名（例: タイムセール） |
 | type | DiscountType | NOT NULL | 種別（定額/定率） |
 | value | Int | NOT NULL | 値（円または%） |
+| targetType | DiscountTargetType | DEFAULT: ORDER_TOTAL | 適用対象 |
+| targetProductId | UUID | FK (NULL可) | 対象商品ID |
+| conditionType | DiscountConditionType | DEFAULT: NONE | 適用条件 |
+| conditionValue | Int | DEFAULT: 0 | 条件閾値 |
+| triggerType | DiscountTriggerType | DEFAULT: MANUAL | 適用トリガー |
+| validFrom | DateTime | NULL可 | 開始日時 |
+| validTo | DateTime | NULL可 | 終了日時 |
+| priority | Int | DEFAULT: 0 | 優先度 |
 | isActive | Boolean | DEFAULT: true | 有効フラグ |
 
 ---
@@ -212,7 +243,10 @@ erDiagram
 | transactionId | UUID | FK | 取引ID |
 | productId | UUID | FK | 商品ID |
 | quantity | Int | NOT NULL | 数量 |
-| unitPrice | Int | NOT NULL | 販売時点の単価 |
+| unitPrice | Int | NOT NULL | 販売時点の単価（割引後） |
+| originalPrice | Int | NOT NULL | 定価（割引前） |
+| discountAmount | Int | DEFAULT: 0 | 1個あたりの割引額 |
+| appliedDiscountId | UUID | FK (NULL可) | 適用割引ID |
 
 > **重要**: `unitPrice` は販売時点の価格を固定保存。マスター価格変更の影響を受けない。
 
@@ -318,6 +352,23 @@ enum DiscountType {
   PERCENT
 }
 
+enum DiscountTargetType {
+  ORDER_TOTAL
+  SPECIFIC_PROD
+  CATEGORY
+}
+
+enum DiscountConditionType {
+  NONE
+  MIN_QUANTITY
+  MIN_AMOUNT
+}
+
+enum DiscountTriggerType {
+  MANUAL
+  AUTO
+}
+
 model User {
   id            String             @id @default(uuid())
   email         String             @unique
@@ -390,14 +441,24 @@ model StockLog {
 }
 
 model Discount {
-  id             String        @id @default(uuid())
-  organizationId String
-  name           String
-  type           DiscountType
-  value          Int
-  isActive       Boolean       @default(true)
-  organization   Organization  @relation(fields: [organizationId], references: [id])
-  transactions   Transaction[]
+  id              String                @id @default(uuid())
+  organizationId  String
+  name            String
+  type            DiscountType
+  value           Int
+  targetType      DiscountTargetType    @default(ORDER_TOTAL)
+  targetProductId String?
+  conditionType   DiscountConditionType @default(NONE)
+  conditionValue  Int                   @default(0)
+  triggerType     DiscountTriggerType   @default(MANUAL)
+  validFrom       DateTime?
+  validTo         DateTime?
+  priority        Int                   @default(0)
+  isActive        Boolean               @default(true)
+  organization    Organization          @relation(fields: [organizationId], references: [id])
+  product         Product?              @relation(fields: [targetProductId], references: [id])
+  transactions    Transaction[]
+  transactionItems TransactionItem[]
 }
 
 model Transaction {
@@ -418,13 +479,17 @@ model Transaction {
 }
 
 model TransactionItem {
-  id            String      @id @default(uuid())
-  transactionId String
-  productId     String
-  quantity      Int
-  unitPrice     Int
-  transaction   Transaction @relation(fields: [transactionId], references: [id])
-  product       Product     @relation(fields: [productId], references: [id])
+  id                String      @id @default(uuid())
+  transactionId     String
+  productId         String
+  quantity          Int
+  unitPrice         Int
+  originalPrice     Int
+  discountAmount    Int         @default(0)
+  appliedDiscountId String?
+  transaction       Transaction @relation(fields: [transactionId], references: [id])
+  product           Product     @relation(fields: [productId], references: [id])
+  discount          Discount?   @relation(fields: [appliedDiscountId], references: [id])
 }
 
 model CashReport {
