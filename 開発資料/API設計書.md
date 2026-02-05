@@ -82,7 +82,7 @@ POST /api/v1/auth/login
         {
           "id": "org-uuid",
           "name": "電子情報工学科2年",
-          "role": "ADMIN"
+          "role": "ADMIN" // ADMIN, STAFF, PENDING
         }
       ]
     }
@@ -193,7 +193,7 @@ POST /api/v1/users/me/organizations
   "data": {
     "id": "org-uuid",
     "name": "新しい団体名",
-    "role": "STAFF"
+    "role": "PENDING" // 加入直後は承認待ち状態
   }
 }
 ```
@@ -282,7 +282,7 @@ PATCH /api/v1/organizations/:orgId/members/:userId
 **Request:**
 ```json
 {
-  "role": "ADMIN"
+  "role": "STAFF" // PENDINGからの変更（承認）、またはSTAFF/ADMIN間の変更
 }
 ```
 

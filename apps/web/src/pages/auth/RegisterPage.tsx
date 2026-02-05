@@ -78,10 +78,10 @@ export default function RegisterPage() {
         <div className="flex items-center justify-center min-h-screen bg-muted/40 px-4 py-8">
             <Card className="w-full max-w-md">
                 <CardHeader className="space-y-1">
-                    <CardTitle className="text-2xl font-bold text-center text-primary">
+                    <CardTitle className="text-xl sm:text-2xl font-bold text-center text-primary">
                         アカウント作成
                     </CardTitle>
-                    <CardDescription className="text-center">
+                    <CardDescription className="text-center text-sm">
                         招待コードを入力してPOSシステムに登録
                     </CardDescription>
                 </CardHeader>

@@ -36,10 +36,9 @@ erDiagram
 
 ### 2.1 Role（ユーザー権限）
 
-| 値 | 説明 |
-|----|------|
 | `ADMIN` | 団体管理者（リーダー） |
 | `STAFF` | 一般スタッフ |
+| `PENDING` | 承認待ち（機能制限状態） |
 
 ### 2.2 UserStatus（アカウント状態）
 
@@ -286,6 +285,7 @@ generator client {
 enum Role {
   ADMIN
   STAFF
+  PENDING
 }
 
 enum UserStatus {

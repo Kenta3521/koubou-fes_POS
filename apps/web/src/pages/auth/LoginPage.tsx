@@ -76,10 +76,10 @@ export default function LoginPage() {
         <div className="flex items-center justify-center min-h-screen bg-muted/40 px-4">
             <Card className="w-full max-w-md">
                 <CardHeader className="space-y-1">
-                    <CardTitle className="text-2xl font-bold text-center text-primary">
+                    <CardTitle className="text-xl sm:text-2xl font-bold text-center text-primary">
                         光芒祭POSシステム
                     </CardTitle>
-                    <CardDescription className="text-center">
+                    <CardDescription className="text-center text-sm">
                         アカウントにログインしてください
                     </CardDescription>
                 </CardHeader>
@@ -104,11 +104,11 @@ export default function LoginPage() {
                             )}
                         </div>
                         <div className="space-y-2">
-                            <div className="flex items-center justify-between">
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
                                 <Label htmlFor="password">パスワード</Label>
                                 <Link
                                     to="/forgot-password"
-                                    className="text-sm text-primary hover:underline"
+                                    className="text-xs sm:text-sm text-primary hover:underline"
                                 >
                                     パスワードを忘れた場合
                                 </Link>

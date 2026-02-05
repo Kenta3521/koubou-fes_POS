@@ -68,10 +68,10 @@ export default function ForgotPasswordPage() {
             <div className="flex items-center justify-center min-h-screen bg-muted/40 px-4">
                 <Card className="w-full max-w-md">
                     <CardHeader>
-                        <CardTitle className="text-2xl font-bold text-center">
+                        <CardTitle className="text-xl sm:text-2xl font-bold text-center">
                             メール送信完了
                         </CardTitle>
-                        <CardDescription className="text-center">
+                        <CardDescription className="text-center text-sm">
                             パスワードリセット用のメールを送信しました。
                         </CardDescription>
                     </CardHeader>
@@ -110,10 +110,10 @@ export default function ForgotPasswordPage() {
         <div className="flex items-center justify-center min-h-screen bg-muted/40 px-4">
             <Card className="w-full max-w-md">
                 <CardHeader>
-                    <CardTitle className="text-2xl font-bold text-center">
+                    <CardTitle className="text-xl sm:text-2xl font-bold text-center">
                         パスワードの再設定
                     </CardTitle>
-                    <CardDescription className="text-center">
+                    <CardDescription className="text-center text-sm">
                         登録したメールアドレスを入力してください。
                     </CardDescription>
                 </CardHeader>

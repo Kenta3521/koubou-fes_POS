@@ -12,6 +12,7 @@ interface AuthState {
     setAuth: (token: string, user: UserWithOrganizations) => void;
     setActiveOrganization: (orgId: string) => void;
     logout: () => void;
+    addOrganization: (org: UserWithOrganizations['organizations'][0]) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -39,6 +40,16 @@ export const useAuthStore = create<AuthState>()(
                 user: null,
                 isAuthenticated: false,
                 activeOrganizationId: null,
+            }),
+
+            addOrganization: (org) => set((state) => {
+                if (!state.user) return state;
+                return {
+                    user: {
+                        ...state.user,
+                        organizations: [...state.user.organizations, org]
+                    }
+                };
             }),
         }),
         {

@@ -27,20 +27,22 @@ function HomePage() {
   const { user } = useAuthStore();
 
   return (
-    <div className="container mx-auto">
-      <h1 className="text-3xl font-bold mb-4">ようこそ、{user?.name}さん</h1>
-      <p className="text-muted-foreground p-4 bg-muted rounded-md mb-6">
+    <div className="container mx-auto px-4 sm:px-6">
+      <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-3 sm:mb-4">
+        ようこそ、{user?.name}さん
+      </h1>
+      <p className="text-sm sm:text-base text-muted-foreground p-3 sm:p-4 bg-muted rounded-md mb-4 sm:mb-6">
         左上のメニューアイコン、またはサイドバーから機能を選択してください。
       </p>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="border rounded-lg p-6 shadow-sm">
-          <h2 className="text-xl font-bold mb-2">POSシステム</h2>
-          <p className="text-gray-600 mb-4">レジ機能を利用して注文処理を行います。</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+        <div className="border rounded-lg p-4 sm:p-6 shadow-sm">
+          <h2 className="text-lg sm:text-xl font-bold mb-2">POSシステム</h2>
+          <p className="text-sm sm:text-base text-gray-600 mb-4">レジ機能を利用して注文処理を行います。</p>
         </div>
-        <div className="border rounded-lg p-6 shadow-sm">
-          <h2 className="text-xl font-bold mb-2">管理機能</h2>
-          <p className="text-gray-600 mb-4">商品やカテゴリの管理、売上データの確認を行います。</p>
+        <div className="border rounded-lg p-4 sm:p-6 shadow-sm">
+          <h2 className="text-lg sm:text-xl font-bold mb-2">管理機能</h2>
+          <p className="text-sm sm:text-base text-gray-600 mb-4">商品やカテゴリの管理、売上データの確認を行います。</p>
         </div>
       </div>
     </div>
