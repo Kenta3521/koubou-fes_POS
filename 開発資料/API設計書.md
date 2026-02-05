@@ -174,7 +174,53 @@ PATCH /api/v1/users/me/password
 }
 ```
 
+### 3.4 団体追加（招待コード）
+```
+POST /api/v1/users/me/organizations
+```
+
+**Request:**
+```json
+{
+  "inviteCode": "ABC123"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "org-uuid",
+    "name": "新しい団体名",
+    "role": "STAFF"
+  }
+}
+```
+### 3.5 団体からの脱退
+```
+DELETE /api/v1/users/me/organizations/:organizationId
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "message": "脱退しました",
+    "organizationId": "org-uuid"
+  }
+}
+```
+
+**Errors:**
+- `ORG_NOT_FOUND`: 所属していない、または存在しない。
+- `CANNOT_LEAVE_AS_LAST_ADMIN`: 唯一の管理者のため脱退不可。
+
 ---
+
+---
+
 
 ## 4. 団体 API
 

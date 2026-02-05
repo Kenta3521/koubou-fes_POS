@@ -62,11 +62,10 @@ export async function loginUser(
         throw new Error('USER_DEACTIVATED');
     }
 
-    // 5. JWT生成
+    // 5. JWT生成（認可情報は含めず、認証用のIDのみ）
     const payload: JWTPayload = {
         userId: user.id,
         email: user.email,
-        isSystemAdmin: user.isSystemAdmin,
     };
     const token = generateToken(payload);
 
@@ -175,11 +174,10 @@ export async function registerUser(
         throw new Error('USER_CREATION_FAILED');
     }
 
-    // 5. JWT生成
+    // 5. JWT生成（認可情報は含めず、認証用のIDのみ）
     const payload: JWTPayload = {
         userId: user.id,
         email: user.email,
-        isSystemAdmin: user.isSystemAdmin,
     };
     const token = generateToken(payload);
 

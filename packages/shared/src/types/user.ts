@@ -25,3 +25,9 @@ export interface UserWithOrganizations extends User {
         role: Role;
     }>;
 }
+
+// Request body for profile update (P1-025)
+export interface UpdateProfileRequest {
+    name?: string;
+    email?: string;
+}

@@ -52,3 +52,6 @@ prisma/migrations/*_migration/
 # Logs
 logs/
 *.log
+
+# Test accounts (Dev only)
+開発資料/test_accounts.md

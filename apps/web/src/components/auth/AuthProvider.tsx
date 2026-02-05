@@ -14,14 +14,9 @@ export default function AuthProvider({ children }: AuthProviderProps) {
         const initializeAuth = async () => {
             if (token) {
                 try {
-                    // トークンがある場合、有効性を確認したり、ユーザー情報を再取得したりする
-                    // 今回は簡易的にトークンがあればOKとし、後続のAPIリクエストで401になったらログアウトする仕組みが必要
-                    // 必要に応じてここで /api/v1/users/me を呼ぶなどの処理を追加可能
-
-                    await api.get('/users/me').catch(() => {
-                        // エラーならログアウト（無効なトークンなど）
-                        logout();
-                    });
+                    const response = await api.get('/users/me');
+                    // DBの最新情報をストアに反映させる
+                    useAuthStore.setState({ user: response.data.data });
 
                 } catch (error) {
                     logout();

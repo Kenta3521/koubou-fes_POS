@@ -31,10 +31,7 @@ export interface PasswordResetConfirm {
     newPassword: string;
 }
 
-// Update profile request - API設計書.md 3.2
-export interface UpdateProfileRequest {
-    name?: string;
-}
+
 
 // Change password request - API設計書.md 3.3
 export interface ChangePasswordRequest {
@@ -43,8 +40,14 @@ export interface ChangePasswordRequest {
 }
 
 // JWT Payload - JWT token payload structure
+// Note: 権限情報（isSystemAdmin等）は意図的に含めていません。
+// 認可はすべてDB照会によって行い、JWT-DB間の不整合を防ぎます。
 export interface JWTPayload {
     userId: string;
     email: string;
-    isSystemAdmin: boolean;
+}
+
+// Join Organization Request - API設計書.md 3.4
+export interface JoinOrganizationRequest {
+    inviteCode: string;
 }

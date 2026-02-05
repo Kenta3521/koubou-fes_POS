@@ -2,12 +2,17 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
-import ProtectedRoute from './components/auth/ProtectedRoute';
-import AuthProvider from './components/auth/AuthProvider';
-import { useAuthStore } from './stores/authStore';
-import { Button } from './components/ui/button';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
 import ResetPasswordPage from './pages/auth/ResetPasswordPage';
+import ProtectedRoute from './components/auth/ProtectedRoute';
+import AuthProvider from './components/auth/AuthProvider';
+import { MainLayout } from './components/layout/MainLayout';
+import { Toaster } from './components/ui/toaster';
+import { useAuthStore } from './stores/authStore';
+import PublicRoute from './components/auth/PublicRoute';
+import NotFoundPage from './pages/NotFoundPage';
+import SelectOrganizationPage from './pages/auth/SelectOrganizationPage';
+import SettingsPage from './pages/settings/SettingsPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -19,20 +24,23 @@ const queryClient = new QueryClient({
 });
 
 function HomePage() {
-  const { user, logout } = useAuthStore();
+  const { user } = useAuthStore();
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto py-8">
-        <h1 className="text-4xl font-bold text-center text-primary">
-          光芒祭POSシステム
-        </h1>
-        <p className="text-center text-muted-foreground mt-4">
-          Phase1: 基盤構築中 (ログイン完了)
-        </p>
-        <div className="mt-8 text-center space-y-4">
-          <p>ようこそ、{user?.name} さん ({user?.email})</p>
-          <Button onClick={logout} variant="outline">ログアウト</Button>
+    <div className="container mx-auto">
+      <h1 className="text-3xl font-bold mb-4">ようこそ、{user?.name}さん</h1>
+      <p className="text-muted-foreground p-4 bg-muted rounded-md mb-6">
+        左上のメニューアイコン、またはサイドバーから機能を選択してください。
+      </p>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="border rounded-lg p-6 shadow-sm">
+          <h2 className="text-xl font-bold mb-2">POSシステム</h2>
+          <p className="text-gray-600 mb-4">レジ機能を利用して注文処理を行います。</p>
+        </div>
+        <div className="border rounded-lg p-6 shadow-sm">
+          <h2 className="text-xl font-bold mb-2">管理機能</h2>
+          <p className="text-gray-600 mb-4">商品やカテゴリの管理、売上データの確認を行います。</p>
         </div>
       </div>
     </div>
@@ -45,15 +53,32 @@ function App() {
       <AuthProvider>
         <Router>
           <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-            <Route path="/reset-password" element={<ResetPasswordPage />} />
-
-            <Route element={<ProtectedRoute />}>
-              <Route path="/" element={<HomePage />} />
+            {/* Public Routes (Guest Only) */}
+            <Route element={<PublicRoute />}>
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
             </Route>
+
+            {/* Organization Selection (Auth required, but no layout yet) */}
+            <Route element={<ProtectedRoute />}>
+              <Route path="/select-org" element={<SelectOrganizationPage />} />
+            </Route>
+
+            {/* Protected Routes (Auth & Layout) */}
+            <Route element={<ProtectedRoute />}>
+              <Route element={<MainLayout />}>
+                <Route path="/" element={<HomePage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+                {/* 今後追加されるルートはここに追加 */}
+              </Route>
+            </Route>
+
+            {/* 404 Not Found */}
+            <Route path="*" element={<NotFoundPage />} />
           </Routes>
+          <Toaster />
         </Router>
       </AuthProvider>
     </QueryClientProvider>
