@@ -1,5 +1,88 @@
 import prisma from '../utils/prisma.js';
-import { TransactionStatus, StockChangeReason } from '@prisma/client';
+import { TransactionStatus, StockChangeReason, PaymentMethod } from '@prisma/client';
+import { calculateOrder } from './calculationService.js';
+
+interface CreateTransactionParams {
+    userId: string;
+    organizationId: string;
+    items: { productId: string; quantity: number }[];
+    paymentMethod: PaymentMethod;
+    manualDiscountId?: string;
+}
+
+/**
+ * 取引を作成する
+ * P4-017: 販売停止中の商品の購入を防ぐ
+ */
+export const createTransaction = async ({
+    userId,
+    organizationId,
+    items,
+    paymentMethod,
+    manualDiscountId,
+}: CreateTransactionParams) => {
+    // 1. 商品のステータスチェック (P4-017)
+    const productIds = items.map(item => item.productId);
+    const products = await prisma.product.findMany({
+        where: {
+            id: { in: productIds },
+            organizationId,
+        },
+    });
+
+    // 商品が存在するか、削除されていないか、アクティブであるかを確認
+    for (const item of items) {
+        const product = products.find(p => p.id === item.productId);
+
+        if (!product) {
+            throw new Error(`Product not found: ${item.productId}`);
+        }
+
+        if (product.deletedAt) {
+            throw new Error(`PRODUCT_NOT_AVAILABLE: ${product.name} (Deleted)`);
+        }
+
+        if (!product.isActive) {
+            throw new Error(`PRODUCT_NOT_AVAILABLE: ${product.name} (Inactive)`);
+        }
+    }
+
+    // 2. 金額計算 (CalculationServiceを再利用)
+    const calculation = await calculateOrder(organizationId, items, manualDiscountId);
+
+    // 3. 取引作成
+    const transaction = await prisma.transaction.create({
+        data: {
+            organizationId,
+            userId,
+            paymentMethod,
+            totalAmount: calculation.totalAmount,
+            discountAmount: calculation.totalDiscountAmount,
+            discountId: manualDiscountId || null,
+            status: TransactionStatus.PENDING,
+            items: {
+                create: calculation.items.map(item => ({
+                    productId: item.productId,
+                    quantity: item.quantity,
+                    unitPrice: item.unitPrice,
+                    originalPrice: item.originalPrice,
+                    discountAmount: item.discountAmount,
+                    appliedDiscountId: item.appliedDiscount?.id || null,
+                })),
+            },
+        },
+        include: {
+            items: {
+                include: {
+                    product: true,
+                },
+            },
+            discount: true,
+        },
+    });
+
+    return transaction;
+};
 
 /**
  * 取引を完了し、在庫を減算してStockLogを記録する
@@ -57,6 +140,16 @@ export const completeTransaction = async (
             // 在庫チェック
             if (item.product.stock < item.quantity) {
                 throw new Error(`INSUFFICIENT_STOCK: ${item.product.name}`);
+            }
+
+            // 在庫チェック (P4-017: 念のためここでもチェックするが、createTransactionで弾くのが基本)
+            // ただし、取引作成後に無効化されるケースも考慮してここで弾くのもありだが、
+            // 「既に取引が作られているなら決済は通す」という考えもあれば、「決済直前で弾く」という考えもある。
+            // 今回の要件「カートに入れてしまうとその後に販売休止しても購入できてしまう」を防ぐには
+            // createTransaction時点でのチェックが必須。
+            // completeTransaction時点でもチェックするとより安全。
+            if (!item.product.isActive || item.product.deletedAt) {
+                throw new Error(`PRODUCT_NOT_AVAILABLE: ${item.product.name}`);
             }
 
             // 在庫減算

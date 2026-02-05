@@ -19,7 +19,7 @@ export const calculateOrder = async (
     // 商品マップ作成
     const productMap = new Map(products.map(p => [p.id, p]));
 
-    // 組織外商品チェック: カートに含まれる商品が現在の組織に属しているか検証
+    // 組織外商品チェック & 有効性チェック (P4-017)
     for (const item of items) {
         if (!productMap.has(item.productId)) {
             // 商品が見つからない場合、別組織の商品かチェック
@@ -32,6 +32,18 @@ export const calculateOrder = async (
                 throw new Error(`商品「${productInOtherOrg.name}」は別の組織に属しています。カートをクリアしてください。`);
             }
             // 商品が存在しない場合は後続の処理でエラーになる
+        } else {
+            const product = productMap.get(item.productId);
+            // 本来は削除済み商品はfindManyで取れない可能性があるが、prismaの仕様次第（デフォルトではdeletedAt!=nullも取るはずだか、論理削除フィルタが入っていないか確認必要）
+            // 明示的にチェックする
+            if (product) {
+                if (product.deletedAt) {
+                    throw new Error(`PRODUCT_NOT_AVAILABLE: ${product.name} (削除済み)`);
+                }
+                if (!product.isActive) {
+                    throw new Error(`PRODUCT_NOT_AVAILABLE: ${product.name} (販売停止中)`);
+                }
+            }
         }
     }
 

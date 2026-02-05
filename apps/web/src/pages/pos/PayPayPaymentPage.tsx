@@ -37,8 +37,8 @@ const PayPayPaymentPage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [timeLeft, setTimeLeft] = useState(300); // 5 minutes
     // Debug state
-    const [isConnected, setIsConnected] = useState(socket.connected);
-    const [lastEvent, setLastEvent] = useState<any>(null);
+    const [isConnected] = useState(socket.connected);
+    // const [lastEvent, setLastEvent] = useState<any>(null);
 
     useEffect(() => {
         function onConnect() {

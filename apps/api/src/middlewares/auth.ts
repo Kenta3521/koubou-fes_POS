@@ -153,3 +153,67 @@ export function requireSystemAdmin(
     }
     next();
 }
+/**
+ * 組織ロール要求ミドルウェア
+ * authenticateの後に使用する
+ */
+export function requireOrgRole(allowedRoles: Role[]) {
+    return (req: Request, res: Response, next: NextFunction): void => {
+        const { orgId } = req.params;
+
+        if (!orgId) {
+            res.status(400).json({
+                success: false,
+                error: {
+                    code: 'ORG_ID_MISSING',
+                    message: '組織IDがリクエストに含まれていません',
+                },
+            });
+            return;
+        }
+
+        if (!req.user) {
+            res.status(401).json({
+                success: false,
+                error: {
+                    code: 'UNAUTHORIZED',
+                    message: '認証が必要です',
+                },
+            });
+            return;
+        }
+
+        // システム管理者は全組織の全操作を許可（必要に応じて調整）
+        if (req.user.isSystemAdmin) {
+            next();
+            return;
+        }
+
+        // 該当組織の所属とロールをチェック
+        const membership = req.user.organizations.find((o) => o.id === orgId);
+
+        if (!membership) {
+            res.status(403).json({
+                success: false,
+                error: {
+                    code: 'PERMISSION_DENIED',
+                    message: 'この組織に所属していません',
+                },
+            });
+            return;
+        }
+
+        if (!allowedRoles.includes(membership.role)) {
+            res.status(403).json({
+                success: false,
+                error: {
+                    code: 'PERMISSION_DENIED',
+                    message: 'この操作を行う権限がありません',
+                },
+            });
+            return;
+        }
+
+        next();
+    };
+}

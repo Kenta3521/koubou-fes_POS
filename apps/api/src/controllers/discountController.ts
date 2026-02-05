@@ -8,9 +8,6 @@ export const getDiscounts = async (
 ) => {
     try {
         const { orgId } = req.params;
-
-        // 権限チェックはMiddlewareで行われている前提（routesで設定）
-
         const discounts = await discountService.findAll(orgId);
 
         res.json({
@@ -21,3 +18,58 @@ export const getDiscounts = async (
         next(error);
     }
 };
+
+export const createDiscount = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+) => {
+    try {
+        const { orgId } = req.params;
+        const discount = await discountService.create(orgId, req.body);
+
+        res.status(201).json({
+            success: true,
+            data: discount,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const updateDiscount = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+) => {
+    try {
+        const { id } = req.params;
+        const discount = await discountService.update(id, req.body);
+
+        res.json({
+            success: true,
+            data: discount,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const deleteDiscount = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+) => {
+    try {
+        const { id } = req.params;
+        await discountService.remove(id);
+
+        res.json({
+            success: true,
+            message: 'Discount deleted successfully',
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+

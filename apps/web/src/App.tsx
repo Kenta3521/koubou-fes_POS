@@ -18,6 +18,9 @@ import OrderConfirmationPage from './pages/pos/OrderConfirmationPage';
 import CashPaymentPage from './pages/pos/CashPaymentPage';
 import PayPayPaymentPage from './pages/pos/PayPayPaymentPage';
 import CompletionPage from './pages/pos/CompletionPage';
+import CategoryManagementPage from './pages/admin/CategoryManagementPage';
+import ProductManagementPage from './pages/admin/ProductManagementPage';
+import DiscountManagementPage from './pages/admin/DiscountManagementPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -85,6 +88,10 @@ function App() {
                 <Route path="/pos/payment/paypay" element={<PayPayPaymentPage />} />
                 <Route path="/pos/complete" element={<CompletionPage />} />
                 {/* 今後追加されるルートはここに追加 */}
+                <Route path="/admin/:orgId/categories" element={<CategoryManagementPage />} />
+                <Route path="/admin/:orgId/products" element={<ProductManagementPage />} />
+                <Route path="/admin/:orgId/discounts" element={<DiscountManagementPage />} />
+
               </Route>
             </Route>
 

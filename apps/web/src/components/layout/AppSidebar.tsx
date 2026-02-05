@@ -167,21 +167,30 @@ export function AppSidebar() {
                         <SidebarGroupContent>
                             <SidebarMenu>
                                 <SidebarMenuItem>
-                                    <SidebarMenuButton asChild>
-                                        <Link to="/categories">
+                                    <SidebarMenuButton asChild isActive={location.pathname.includes('/categories')}>
+                                        <Link to={`/admin/${activeOrganizationId}/categories`}>
                                             <Tags />
                                             <span>商品カテゴリ</span>
                                         </Link>
                                     </SidebarMenuButton>
                                 </SidebarMenuItem>
                                 <SidebarMenuItem>
-                                    <SidebarMenuButton asChild>
-                                        <Link to="/products">
+                                    <SidebarMenuButton asChild isActive={location.pathname.includes('/products')}>
+                                        <Link to={`/admin/${activeOrganizationId}/products`}>
                                             <ListFilter />
                                             <span>商品管理</span>
                                         </Link>
                                     </SidebarMenuButton>
                                 </SidebarMenuItem>
+                                <SidebarMenuItem>
+                                    <SidebarMenuButton asChild isActive={location.pathname.includes('/discounts')}>
+                                        <Link to={`/admin/${activeOrganizationId}/discounts`}>
+                                            <Tags />
+                                            <span>割引管理</span>
+                                        </Link>
+                                    </SidebarMenuButton>
+                                </SidebarMenuItem>
+
                                 <SidebarMenuItem>
                                     <SidebarMenuButton asChild>
                                         <Link to="/staff">
@@ -190,6 +199,7 @@ export function AppSidebar() {
                                         </Link>
                                     </SidebarMenuButton>
                                 </SidebarMenuItem>
+
                             </SidebarMenu>
                         </SidebarGroupContent>
                     </SidebarGroup>

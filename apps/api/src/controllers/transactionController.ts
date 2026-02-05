@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { calculateOrder } from '../services/calculationService.js';
-import { completeTransaction } from '../services/transactionService.js';
+import * as completeTransactionService from '../services/transactionService.js';
 import { TransactionStatus } from '@prisma/client';
 import prisma from '../utils/prisma.js';
 import { PAYPAY } from '../lib/paypay.js';
@@ -77,38 +77,13 @@ export const createTransaction = async (req: Request, res: Response, next: NextF
             });
         }
 
-        // Calculate the order to get accurate totals
-        const calculation = await calculateOrder(orgId, items, manualDiscountId);
-
-        // Create transaction with items
-        const transaction = await prisma.transaction.create({
-            data: {
-                organizationId: orgId,
-                userId,
-                paymentMethod,
-                totalAmount: calculation.totalAmount,
-                discountAmount: calculation.totalDiscountAmount,
-                discountId: manualDiscountId || null,
-                status: TransactionStatus.PENDING,
-                items: {
-                    create: calculation.items.map(item => ({
-                        productId: item.productId,
-                        quantity: item.quantity,
-                        unitPrice: item.unitPrice,
-                        originalPrice: item.originalPrice,
-                        discountAmount: item.discountAmount,
-                        appliedDiscountId: item.appliedDiscount?.id || null,
-                    })),
-                },
-            },
-            include: {
-                items: {
-                    include: {
-                        product: true,
-                    },
-                },
-                discount: true,
-            },
+        // Serviceを使って取引作成 (ここで商品の有効性チェックも行われる)
+        const transaction = await completeTransactionService.createTransaction({
+            userId,
+            organizationId: orgId,
+            items: items.map((i: any) => ({ productId: i.productId, quantity: i.quantity })),
+            paymentMethod,
+            manualDiscountId,
         });
 
         res.status(201).json({
@@ -128,6 +103,15 @@ export const createTransaction = async (req: Request, res: Response, next: NextF
             });
         }
 
+        if (error.message?.startsWith('PRODUCT_NOT_AVAILABLE')) {
+            return res.status(400).json({
+                success: false,
+                error: {
+                    code: 'PRODUCT_NOT_AVAILABLE',
+                    message: error.message.replace('PRODUCT_NOT_AVAILABLE: ', ''),
+                },
+            });
+        }
 
         next(error);
     }
@@ -153,7 +137,7 @@ export const completeCashPayment = async (req: Request, res: Response, next: Nex
             });
         }
 
-        const completedTransaction = await completeTransaction(transactionId, userId, orgId);
+        const completedTransaction = await completeTransactionService.completeTransaction(transactionId, userId, orgId);
 
         res.json({
             success: true,
@@ -448,7 +432,7 @@ export const checkPayPayStatus = async (req: Request, res: Response, next: NextF
         // If PayPay is COMPLETED but local is PENDING, synchronize.
         if (paypayStatus === 'COMPLETED' && transaction.status === TransactionStatus.PENDING) {
             console.log(`Synching transaction ${transactionId} to COMPLETED via status check.`);
-            await completeTransaction(transactionId, transaction.userId, orgId); // Using transaction.userId as owner
+            await completeTransactionService.completeTransaction(transactionId, transaction.userId, orgId); // Using transaction.userId as owner
 
             // Re-fetch to get updated data
             const updatedTx = await prisma.transaction.findUnique({

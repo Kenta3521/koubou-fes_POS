@@ -34,3 +34,21 @@ export enum DiscountType {
     FIXED = 'FIXED',
     PERCENT = 'PERCENT',
 }
+
+export enum DiscountTargetType {
+    ORDER_TOTAL = 'ORDER_TOTAL',
+    SPECIFIC_PROD = 'SPECIFIC_PROD',
+    CATEGORY = 'CATEGORY',
+}
+
+export enum DiscountConditionType {
+    NONE = 'NONE',
+    MIN_QUANTITY = 'MIN_QUANTITY',
+    MIN_AMOUNT = 'MIN_AMOUNT',
+}
+
+export enum DiscountTriggerType {
+    MANUAL = 'MANUAL',
+    AUTO = 'AUTO',
+}
+
