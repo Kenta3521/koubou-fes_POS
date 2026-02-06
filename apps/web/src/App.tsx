@@ -23,6 +23,7 @@ import ProductManagementPage from './pages/admin/ProductManagementPage';
 import DiscountManagementPage from './pages/admin/DiscountManagementPage';
 import StaffManagementPage from './pages/admin/StaffManagementPage';
 import TransactionHistoryPage from './pages/admin/TransactionHistoryPage';
+import DashboardPage from './pages/admin/DashboardPage';
 import RequireOrgAdmin from './components/auth/RequireOrgAdmin';
 
 const queryClient = new QueryClient({
@@ -97,6 +98,7 @@ function App() {
                   <Route path="/admin/:orgId/discounts" element={<DiscountManagementPage />} />
                   <Route path="/admin/:orgId/staff" element={<StaffManagementPage />} />
                   <Route path="/admin/:orgId/transactions" element={<TransactionHistoryPage />} />
+                  <Route path="/admin/:orgId/dashboard" element={<DashboardPage />} />
                 </Route>
 
               </Route>

@@ -11,6 +11,7 @@ import productRoutes from './products.js';
 import discountRoutes from './discounts.js';
 import transactionRoutes from './transactions.js';
 import memberRoutes from './members.js';
+import dashboardRoutes from './dashboard.js';
 
 const router: Router = Router();
 
@@ -35,5 +36,8 @@ router.use('/:orgId/transactions', transactionRoutes);
 
 // Member Routes
 router.use('/:orgId/members', memberRoutes);
+
+// Dashboard Routes
+router.use('/:orgId/dashboard', dashboardRoutes);
 
 export default router;

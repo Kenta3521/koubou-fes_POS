@@ -180,7 +180,27 @@ export function AppSidebar() {
                                 <SidebarMenu>
                                     <SidebarMenuItem>
                                         <SidebarMenuButton
-                                            onClick={() => window.location.href = `/admin/${activeOrganizationId}/categories`}
+                                            onClick={() => {
+                                                const targetId = activeOrganizationId || user?.organizations?.[0]?.id;
+                                                if (targetId) {
+                                                    window.location.href = `/admin/${targetId}/dashboard`;
+                                                } else {
+                                                    // 組織がない場合は選択画面へ
+                                                    window.location.href = '/select-org';
+                                                }
+                                            }}
+                                            isActive={location.pathname.includes('/dashboard')}
+                                        >
+                                            <LayoutDashboard />
+                                            <span>分析ダッシュボード</span>
+                                        </SidebarMenuButton>
+                                    </SidebarMenuItem>
+                                    <SidebarMenuItem>
+                                        <SidebarMenuButton
+                                            onClick={() => {
+                                                const targetId = activeOrganizationId || user?.organizations?.[0]?.id;
+                                                if (targetId) window.location.href = `/admin/${targetId}/categories`;
+                                            }}
                                             isActive={location.pathname.includes('/categories')}
                                         >
                                             <Tags />
@@ -189,7 +209,10 @@ export function AppSidebar() {
                                     </SidebarMenuItem>
                                     <SidebarMenuItem>
                                         <SidebarMenuButton
-                                            onClick={() => window.location.href = `/admin/${activeOrganizationId}/products`}
+                                            onClick={() => {
+                                                const targetId = activeOrganizationId || user?.organizations?.[0]?.id;
+                                                if (targetId) window.location.href = `/admin/${targetId}/products`;
+                                            }}
                                             isActive={location.pathname.includes('/products')}
                                         >
                                             <ListFilter />
@@ -198,7 +221,10 @@ export function AppSidebar() {
                                     </SidebarMenuItem>
                                     <SidebarMenuItem>
                                         <SidebarMenuButton
-                                            onClick={() => window.location.href = `/admin/${activeOrganizationId}/discounts`}
+                                            onClick={() => {
+                                                const targetId = activeOrganizationId || user?.organizations?.[0]?.id;
+                                                if (targetId) window.location.href = `/admin/${targetId}/discounts`;
+                                            }}
                                             isActive={location.pathname.includes('/discounts')}
                                         >
                                             <Tags />
@@ -208,7 +234,10 @@ export function AppSidebar() {
 
                                     <SidebarMenuItem>
                                         <SidebarMenuButton
-                                            onClick={() => window.location.href = `/admin/${activeOrganizationId}/transactions`}
+                                            onClick={() => {
+                                                const targetId = activeOrganizationId || user?.organizations?.[0]?.id;
+                                                if (targetId) window.location.href = `/admin/${targetId}/transactions`;
+                                            }}
                                             isActive={location.pathname.includes('/transactions')}
                                         >
                                             <History />
@@ -218,7 +247,10 @@ export function AppSidebar() {
 
                                     <SidebarMenuItem>
                                         <SidebarMenuButton
-                                            onClick={() => window.location.href = `/admin/${activeOrganizationId}/staff`}
+                                            onClick={() => {
+                                                const targetId = activeOrganizationId || user?.organizations?.[0]?.id;
+                                                if (targetId) window.location.href = `/admin/${targetId}/staff`;
+                                            }}
                                             isActive={location.pathname.includes('/staff')}
                                         >
                                             <Users />

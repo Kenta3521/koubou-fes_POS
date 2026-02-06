@@ -631,6 +631,34 @@ GET /api/v1/organizations/:orgId/analytics/products
 
 ---
 
+### 10.4 ダッシュボード (Dashboard) (ORG_ADMIN)
+
+```
+GET /api/v1/organizations/:orgId/dashboard/summary
+```
+- **Response Data**: `totalSales`, `totalCustomers`, `lastHourSales`, `growthRate`
+
+```
+GET /api/v1/organizations/:orgId/dashboard/trends
+```
+- **Response Data**: Array of `{ time: "HH:mm", sales: number, customers: number, categories: { [name]: number } }`
+
+```
+GET /api/v1/organizations/:orgId/dashboard/inventory
+```
+- **Response Data**: `outOfStock` (Product[]), `lowStock` (Product[])
+
+```
+GET /api/v1/organizations/:orgId/dashboard/health
+```
+- **Response Data**: `dbStatus`: "ONLINE"|"OFFLINE", `serverUptime`: number
+
+```
+GET /api/v1/organizations/:orgId/dashboard/alerts
+```
+- **Response Data**: Array of recent error logs or critical notifications
+
+
 ## 11. システム管理 API (SYSTEM_ADMIN)
 
 ### 11.1 全体ダッシュボード
