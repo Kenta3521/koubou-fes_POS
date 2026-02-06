@@ -735,6 +735,27 @@ PATCH /api/v1/admin/settings
 POST /api/v1/admin/emergency-stop
 ```
 
+### 11.9 団体一覧 (管理用)
+```
+GET /api/v1/admin/organizations/list
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "org-uuid",
+      "name": "建築学科3年",
+      "inviteCode": "XYZ789",
+      "isActive": true,
+      "createdAt": "2026-02-01T10:00:00Z"
+    }
+  ]
+}
+```
+
 ---
 
 ## 12. PayPay Webhook

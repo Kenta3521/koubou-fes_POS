@@ -4,8 +4,8 @@
  */
 
 import { Router } from 'express';
-import { authenticate } from '../middlewares/auth.js';
-import { listOrganizations, getOrganization } from '../controllers/organizationController.js';
+import { authenticate, requireSystemAdmin } from '../middlewares/auth.js';
+import { listOrganizations, getOrganization, createOrganization, updateOrganization, regenerateInviteCode } from '../controllers/organizationController.js';
 import categoryRoutes from './categories.js';
 import productRoutes from './products.js';
 import discountRoutes from './discounts.js';
@@ -18,8 +18,17 @@ const router: Router = Router();
 // GET /api/v1/organizations
 router.get('/', authenticate, listOrganizations);
 
+// POST /api/v1/organizations (System Admin Only)
+router.post('/', authenticate, requireSystemAdmin, createOrganization);
+
 // GET /api/v1/organizations/:orgId
 router.get('/:orgId', authenticate, getOrganization);
+
+// PATCH /api/v1/organizations/:orgId (System Admin Only)
+router.patch('/:orgId', authenticate, requireSystemAdmin, updateOrganization);
+
+// POST /api/v1/organizations/:orgId/regenerate-invite (System Admin Only)
+router.post('/:orgId/regenerate-invite', authenticate, requireSystemAdmin, regenerateInviteCode);
 
 // Nested Routes
 // GET /api/v1/organizations/:orgId/categories

@@ -25,6 +25,9 @@ import StaffManagementPage from './pages/admin/StaffManagementPage';
 import TransactionHistoryPage from './pages/admin/TransactionHistoryPage';
 import DashboardPage from './pages/admin/DashboardPage';
 import RequireOrgAdmin from './components/auth/RequireOrgAdmin';
+import RequireSystemAdmin from './components/auth/RequireSystemAdmin';
+import OrganizationManagementPage from './pages/admin/OrganizationManagementPage';
+import OrganizationDetailPage from './pages/admin/OrganizationDetailPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -102,6 +105,15 @@ function App() {
                 </Route>
 
               </Route>
+
+              {/* System Admin Routes */}
+              <Route element={<RequireSystemAdmin />}>
+                <Route element={<MainLayout />}>
+                  <Route path="/admin/organizations" element={<OrganizationManagementPage />} />
+                  <Route path="/admin/organizations/:orgId" element={<OrganizationDetailPage />} />
+                </Route>
+              </Route>
+
             </Route>
 
             {/* 404 Not Found */}
@@ -110,7 +122,7 @@ function App() {
           <Toaster />
         </Router>
       </AuthProvider>
-    </QueryClientProvider>
+    </QueryClientProvider >
   );
 }
 

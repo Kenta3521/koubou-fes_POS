@@ -58,6 +58,8 @@ app.use('/api/v1/users', usersRoutes);
 app.use('/api/v1/organizations', organizationRoutes);
 import webhookRoutes from './routes/webhooks.js';
 app.use('/api/v1/webhooks', webhookRoutes);
+import adminRoutes from './routes/admin.js';
+app.use('/api/v1/admin', adminRoutes);
 
 
 

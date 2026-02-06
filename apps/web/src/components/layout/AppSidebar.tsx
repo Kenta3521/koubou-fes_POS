@@ -263,6 +263,26 @@ export function AppSidebar() {
                         </SidebarGroup>
                     )}
 
+                    {/* System Management - Only for System Admins */}
+                    {user?.isSystemAdmin && (
+                        <SidebarGroup>
+                            <SidebarGroupLabel>System Management</SidebarGroupLabel>
+                            <SidebarGroupContent>
+                                <SidebarMenu>
+                                    <SidebarMenuItem>
+                                        <SidebarMenuButton
+                                            onClick={() => window.location.href = '/admin/organizations'}
+                                            isActive={location.pathname === '/admin/organizations'}
+                                        >
+                                            <Users />
+                                            <span>団体管理</span>
+                                        </SidebarMenuButton>
+                                    </SidebarMenuItem>
+                                </SidebarMenu>
+                            </SidebarGroupContent>
+                        </SidebarGroup>
+                    )}
+
                     {/* Settings Group */}
                     <SidebarGroup>
                         <SidebarGroupLabel>Settings</SidebarGroupLabel>

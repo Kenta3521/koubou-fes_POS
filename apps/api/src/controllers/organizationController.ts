@@ -79,3 +79,153 @@ export async function getOrganization(req: Request, res: Response): Promise<void
         });
     }
 }
+
+/**
+ * 団体作成 (SYSTEM_ADMIN)
+ * POST /api/v1/organizations
+ */
+export async function createOrganization(req: Request, res: Response): Promise<void> {
+    try {
+        const { name, inviteCode: customInviteCode } = req.body;
+
+        if (!name) {
+            res.status(400).json({
+                success: false,
+                error: { code: 'VALIDATION_ERROR', message: '団体名は必須です' }
+            });
+            return;
+        }
+
+        let inviteCode = customInviteCode;
+
+        // カスタムコードがない場合はランダム生成 (8文字英数字)
+        if (!inviteCode) {
+            const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let result = '';
+            for (let i = 0; i < 8; i++) {
+                result += charset.charAt(Math.floor(Math.random() * charset.length));
+            }
+            inviteCode = result;
+        }
+
+        const organization = await prisma.organization.create({
+            data: {
+                name,
+                inviteCode,
+            }
+        });
+
+        res.status(201).json({
+            success: true,
+            data: organization
+        });
+    } catch (error) {
+        // P2002: Unique constraint failed
+        if ((error as any).code === 'P2002' && (error as any).meta?.target?.includes('inviteCode')) {
+            res.status(409).json({
+                success: false,
+                error: { code: 'INVITE_CODE_EXISTS', message: 'この招待コードは既に使用されています' }
+            });
+            return;
+        }
+        logger.error('Create organization error:', error);
+        res.status(500).json({
+            success: false,
+            error: { code: 'INTERNAL_ERROR', message: '団体の作成に失敗しました' }
+        });
+    }
+}
+
+/**
+ * 団体更新 (SYSTEM_ADMIN)
+ * PATCH /api/v1/organizations/:orgId
+ */
+export async function updateOrganization(req: Request, res: Response): Promise<void> {
+    try {
+        const { orgId } = req.params;
+        const { name, isActive } = req.body;
+
+        const organization = await prisma.organization.update({
+            where: { id: orgId },
+            data: {
+                name,
+                isActive
+            }
+        });
+
+        res.json({
+            success: true,
+            data: organization
+        });
+    } catch (error) {
+        // P2025: Record to update not found
+        if ((error as any).code === 'P2025') {
+            res.status(404).json({
+                success: false,
+                error: { code: 'ORG_NOT_FOUND', message: '団体が見つかりません' }
+            });
+            return;
+        }
+        logger.error('Update organization error:', error);
+        res.status(500).json({
+            success: false,
+            error: { code: 'INTERNAL_ERROR', message: '団体の更新に失敗しました' }
+        });
+    }
+}
+
+/**
+ * 招待コード再発行 (SYSTEM_ADMIN)
+ * POST /api/v1/organizations/:orgId/regenerate-invite
+ */
+export async function regenerateInviteCode(req: Request, res: Response): Promise<void> {
+    try {
+        const { orgId } = req.params;
+        const { inviteCode: customInviteCode } = req.body;
+
+        let newInviteCode = customInviteCode;
+
+        // カスタムコードがない場合はランダム生成 (8文字英数字)
+        if (!newInviteCode) {
+            const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let result = '';
+            for (let i = 0; i < 8; i++) {
+                result += charset.charAt(Math.floor(Math.random() * charset.length));
+            }
+            newInviteCode = result;
+        }
+
+        const organization = await prisma.organization.update({
+            where: { id: orgId },
+            data: { inviteCode: newInviteCode }
+        });
+
+        res.json({
+            success: true,
+            data: {
+                newInviteCode: organization.inviteCode
+            }
+        });
+    } catch (error) {
+        // P2002: Unique constraint failed
+        if ((error as any).code === 'P2002' && (error as any).meta?.target?.includes('inviteCode')) {
+            res.status(409).json({
+                success: false,
+                error: { code: 'INVITE_CODE_EXISTS', message: 'この招待コードは既に使用されています' }
+            });
+            return;
+        }
+        if ((error as any).code === 'P2025') {
+            res.status(404).json({
+                success: false,
+                error: { code: 'ORG_NOT_FOUND', message: '団体が見つかりません' }
+            });
+            return;
+        }
+        logger.error('Regenerate invite code error:', error);
+        res.status(500).json({
+            success: false,
+            error: { code: 'INTERNAL_ERROR', message: '招待コードの再発行に失敗しました' }
+        });
+    }
+}
