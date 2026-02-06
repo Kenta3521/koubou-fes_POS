@@ -1,6 +1,6 @@
 import prisma from '../utils/prisma.js';
 import { CalculationResult, CalculatedItem, DiscountSummary } from '@koubou-fes-pos/shared';
-import { Discount, DiscountTargetType, DiscountConditionType, DiscountTriggerType, DiscountType } from '@prisma/client';
+import { DiscountTargetType, DiscountConditionType, DiscountTriggerType, DiscountType } from '@prisma/client';
 
 export const calculateOrder = async (
     organizationId: string,
@@ -47,7 +47,7 @@ export const calculateOrder = async (
         }
     }
 
-    // 2. 有効な割引の取得 (AUTO)
+    // 2. 有効な割引の取得
     const now = new Date();
     const allDiscounts = await prisma.discount.findMany({
         where: {
@@ -63,7 +63,19 @@ export const calculateOrder = async (
         return true;
     });
 
-    // 3. 各商品の計算（自動割引適用）
+    // マニュアル割引の準備
+    let manualDiscount: typeof allDiscounts[0] | undefined;
+    if (manualDiscountId) {
+        manualDiscount = allDiscounts.find(d => d.id === manualDiscountId);
+        // 有効期限チェック
+        if (manualDiscount) {
+            if (manualDiscount.triggerType !== DiscountTriggerType.MANUAL) manualDiscount = undefined;
+            if (manualDiscount && manualDiscount.validFrom && manualDiscount.validFrom > now) manualDiscount = undefined;
+            if (manualDiscount && manualDiscount.validTo && manualDiscount.validTo < now) manualDiscount = undefined;
+        }
+    }
+
+    // 3. 各商品の計算（割引適用）
     const calculatedItems: CalculatedItem[] = items.map(item => {
         const product = productMap.get(item.productId);
         if (!product) {
@@ -83,12 +95,46 @@ export const calculateOrder = async (
                 if (d.conditionType === DiscountConditionType.MIN_QUANTITY) {
                     return item.quantity >= d.conditionValue;
                 }
-                // 他の条件 (MIN_AMOUNT等) は商品単位だと小計判定？ ここではQuantityのみ対応
                 return true;
             }
-            // カテゴリ対象等は未実装
+
+            // カテゴリ対象 (P4 追加実装)
+            if (d.targetType === DiscountTargetType.CATEGORY && (d as any).targetCategoryId && (d as any).targetCategoryId === product.categoryId) {
+                // 条件チェック (簡易的にアイテム単位での数量チェックとする)
+                // 本来はカテゴリ内合計数量などを計算すべきだが、現状のアーキテクチャに合わせてアイテム単位で判定
+                if (d.conditionType === DiscountConditionType.MIN_QUANTITY) {
+                    return item.quantity >= d.conditionValue;
+                }
+                return true;
+            }
+
             return false;
         });
+
+        // マニュアル割引が商品/カテゴリ対象なら候補に追加
+        if (manualDiscount) {
+            let isApplicable = false;
+            // 特定商品対象
+            if (manualDiscount.targetType === DiscountTargetType.SPECIFIC_PROD && manualDiscount.targetProductId === item.productId) {
+                if (manualDiscount.conditionType === DiscountConditionType.MIN_QUANTITY) {
+                    isApplicable = item.quantity >= manualDiscount.conditionValue;
+                } else {
+                    isApplicable = true;
+                }
+            }
+            // カテゴリ対象
+            else if (manualDiscount.targetType === DiscountTargetType.CATEGORY && (manualDiscount as any).targetCategoryId && (manualDiscount as any).targetCategoryId === product.categoryId) {
+                if (manualDiscount.conditionType === DiscountConditionType.MIN_QUANTITY) {
+                    isApplicable = item.quantity >= manualDiscount.conditionValue;
+                } else {
+                    isApplicable = true;
+                }
+            }
+
+            if (isApplicable) {
+                applicableDiscounts.push(manualDiscount);
+            }
+        }
 
         // 優先度順にソートして適用
         if (applicableDiscounts.length > 0) {
@@ -131,34 +177,21 @@ export const calculateOrder = async (
     const netTotalAfterItemDiscount = calculatedItems.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
     const totalItemDiscount = calculatedItems.reduce((sum, item) => sum + (item.discountAmount * item.quantity), 0);
 
-    // 5. 手動割引 / 全体割引の適用
+    // 5. 手動割引 / 全体割引の適用 (ORDER_TOTALのみ)
     let totalAmount = netTotalAfterItemDiscount;
     let appliedOrderDiscount: DiscountSummary | null = null;
     let orderDiscountValue = 0;
 
-    if (manualDiscountId) {
-        // マニュアル割引の検索と検証
-        const manualDiscount = allDiscounts.find(d => d.id === manualDiscountId);
-
+    if (manualDiscount && manualDiscount.targetType === DiscountTargetType.ORDER_TOTAL) {
+        // 対象チェック (ORDER_TOTAL)
         let isValid = false;
-        if (manualDiscount && manualDiscount.triggerType === DiscountTriggerType.MANUAL && manualDiscount.isActive) {
-            // 期間チェック
-            if ((!manualDiscount.validFrom || manualDiscount.validFrom <= now) &&
-                (!manualDiscount.validTo || manualDiscount.validTo >= now)) {
-
-                // 対象チェック (ORDER_TOTALのみ対応とする。SPECIFIC_PRODの手動適用は複雑なため)
-                if (manualDiscount.targetType === DiscountTargetType.ORDER_TOTAL) {
-                    // 条件チェック
-                    if (manualDiscount.conditionType === DiscountConditionType.MIN_AMOUNT) {
-                        isValid = netTotalAfterItemDiscount >= manualDiscount.conditionValue;
-                    } else {
-                        isValid = true;
-                    }
-                }
-            }
+        if (manualDiscount.conditionType === DiscountConditionType.MIN_AMOUNT) {
+            isValid = netTotalAfterItemDiscount >= manualDiscount.conditionValue;
+        } else {
+            isValid = true;
         }
 
-        if (isValid && manualDiscount) {
+        if (isValid) {
             if (manualDiscount.type === DiscountType.FIXED) {
                 orderDiscountValue = manualDiscount.value;
             } else if (manualDiscount.type === DiscountType.PERCENT) {

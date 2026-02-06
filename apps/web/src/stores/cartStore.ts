@@ -21,9 +21,9 @@ interface CartState {
     currentOrganizationId: string | null; // 現在のカートが属する組織ID
 
     // Actions
-    addItem: (product: { id: string; name: string; price: number; categoryId: string }) => void;
+    addItem: (product: { id: string; name: string; price: number; categoryId: string; stock: number }) => void;
     removeItem: (productId: string) => void;
-    updateQuantity: (productId: string, quantity: number) => void;
+    updateQuantity: (productId: string, quantity: number, stock?: number) => void;
     clearCart: () => void;
     setOrganization: (organizationId: string) => void; // 組織切り替え時にカートをクリア
 
@@ -37,8 +37,15 @@ export const useCartStore = create<CartState>((set, get) => ({
     currentOrganizationId: null,
 
     // 商品をカートに追加（既存の場合は数量+1）
-    addItem: (product) => set((state) => {
+    addItem: (product: { id: string; name: string; price: number; categoryId: string; stock: number }) => set((state) => {
         const existingItem = state.items.find(item => item.productId === product.id);
+        const currentQuantity = existingItem ? existingItem.quantity : 0;
+
+        // 在庫チェック
+        if (currentQuantity + 1 > product.stock) {
+            console.warn(`Cannot add more of ${product.name}. Stock limit reached: ${product.stock}`);
+            return state;
+        }
 
         if (existingItem) {
             // 既存アイテムの数量を+1
@@ -69,11 +76,23 @@ export const useCartStore = create<CartState>((set, get) => ({
     })),
 
     // 商品の数量を変更
-    updateQuantity: (productId, quantity) => set((state) => {
+    updateQuantity: (productId, quantity, stock) => set((state) => {
         if (quantity <= 0) {
             // 数量が0以下の場合は削除
             return {
                 items: state.items.filter(item => item.productId !== productId)
+            };
+        }
+
+        // 在庫チェック
+        if (stock !== undefined && quantity > stock) {
+            console.warn(`Cannot set quantity to ${quantity}. Stock limit: ${stock}`);
+            return {
+                items: state.items.map(item =>
+                    item.productId === productId
+                        ? { ...item, quantity: stock }
+                        : item
+                )
             };
         }
 

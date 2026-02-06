@@ -29,7 +29,7 @@ app.use(
 // Rate limiting
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // limit each IP to 100 requests per windowMs
+    max: process.env.NODE_ENV === 'development' ? 10000 : 2000, // 開発時は大幅に緩和
     message: 'Too many requests from this IP, please try again later.',
 });
 app.use('/api', limiter);
@@ -104,5 +104,32 @@ httpServer.listen(PORT, () => {
     logger.info(`📊 Health check: http://localhost:${PORT}/health`);
     logger.info(`🔌 API endpoint: http://localhost:${PORT}/api/v1`);
 });
+
+// Graceful shutdown
+import { closePrisma } from './utils/prisma.js';
+
+const shutdown = async (signal: string) => {
+    logger.info(`Received ${signal}. Shutting down gracefully...`);
+    httpServer.close(async () => {
+        logger.info('HTTP server closed.');
+        try {
+            await closePrisma();
+            logger.info('Prisma connection closed.');
+            process.exit(0);
+        } catch (err) {
+            logger.error('Error during shutdown:', err);
+            process.exit(1);
+        }
+    });
+
+    // Forced shutdown after 10 seconds
+    setTimeout(() => {
+        logger.error('Could not close connections in time, forcefully shutting down');
+        process.exit(1);
+    }, 10000);
+};
+
+process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGTERM', () => shutdown('SIGTERM'));
 
 export default app;

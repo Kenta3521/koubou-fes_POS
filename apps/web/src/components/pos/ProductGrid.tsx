@@ -4,18 +4,48 @@
  * 商品カードをグリッドで表示（レスポンシブ対応）
  */
 
+import { useMemo } from 'react';
 import { ProductCard } from './ProductCard';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAutoDiscounts } from '@/hooks/useAutoDiscounts';
 import type { Product } from '@/hooks/useProducts';
 
 interface ProductGridProps {
     products: Product[];
     isLoading: boolean;
     cartQuantities: { [productId: string]: number };
-    onProductTap: (product: { id: string; name: string; price: number; categoryId: string }) => void;
+    onProductTap: (product: { id: string; name: string; price: number; categoryId: string; stock: number }) => void;
 }
 
 export function ProductGrid({ products, isLoading, cartQuantities, onProductTap }: ProductGridProps) {
+    const { data: autoDiscounts = [] } = useAutoDiscounts();
+
+    // 各商品に適用される割引を計算
+    const productDiscounts = useMemo(() => {
+        const discountMap: { [productId: string]: { name: string; type: string; value: number } | null } = {};
+
+        products.forEach(product => {
+            // 商品に適用される割引を探す（優先度順）
+            const applicableDiscount = autoDiscounts.find(d => {
+                if (d.targetType === 'SPECIFIC_PROD' && d.targetProductId === product.id) {
+                    return true;
+                }
+                if (d.targetType === 'CATEGORY' && d.targetCategoryId === product.categoryId) {
+                    return true;
+                }
+                return false;
+            });
+
+            discountMap[product.id] = applicableDiscount ? {
+                name: applicableDiscount.name,
+                type: applicableDiscount.type,
+                value: applicableDiscount.value
+            } : null;
+        });
+
+        return discountMap;
+    }, [products, autoDiscounts]);
+
     // ローディング中のスケルトン
     if (isLoading) {
         return (
@@ -45,18 +75,25 @@ export function ProductGrid({ products, isLoading, cartQuantities, onProductTap 
                - PC: カードサイズが大きくなりすぎないように列数を増やす or max-width制限
             */}
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 max-w-[1200px] mx-auto">
-                {products.map((product) => (
-                    <ProductCard
-                        key={product.id}
-                        id={product.id}
-                        name={product.name}
-                        price={product.price}
-                        isActive={product.isActive}
-                        categoryId={product.categoryId}
-                        quantityInCart={cartQuantities[product.id] || 0}
-                        onTap={onProductTap}
-                    />
-                ))}
+                {products.map((product) => {
+                    const quantityInCart = cartQuantities[product.id] || 0;
+                    // 在庫があるか、および在庫上限に達していないか
+                    const canAddMore = product.isActive && product.stock > quantityInCart;
+
+                    return (
+                        <ProductCard
+                            key={product.id}
+                            id={product.id}
+                            name={product.name}
+                            price={product.price}
+                            isActive={canAddMore}
+                            categoryId={product.categoryId}
+                            quantityInCart={quantityInCart}
+                            discount={productDiscounts[product.id]}
+                            onTap={() => onProductTap({ ...product })}
+                        />
+                    );
+                })}
             </div>
         </div>
     );

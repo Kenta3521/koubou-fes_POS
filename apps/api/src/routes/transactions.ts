@@ -5,9 +5,17 @@
 import { Router } from 'express';
 import { authenticate, requireOrgRole } from '../middlewares/auth.js';
 import { Role } from '@koubou-fes-pos/shared';
-import { calculate, createTransaction, completeCashPayment, createPayPayPayment, cancelTransaction, checkPayPayStatus } from '../controllers/transactionController.js';
+import { calculate, createTransaction, completeCashPayment, createPayPayPayment, cancelTransaction, checkPayPayStatus, getTransactions, getTransactionDetail } from '../controllers/transactionController.js';
 
 const router: Router = Router({ mergeParams: true });
+
+// GET /api/v1/organizations/:orgId/transactions
+// Get transaction history (P4-028)
+router.get('/', authenticate, requireOrgRole([Role.ADMIN]), getTransactions);
+
+// GET /api/v1/organizations/:orgId/transactions/:id
+// Get transaction detail (P4-029)
+router.get('/:id', authenticate, requireOrgRole([Role.ADMIN]), getTransactionDetail);
 
 // POST /api/v1/organizations/:orgId/transactions/calculate
 // Calculate order totals and preview discounts

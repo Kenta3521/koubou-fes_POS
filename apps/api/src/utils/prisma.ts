@@ -15,16 +15,38 @@ const { Pool } = pg;
 const connectionString = process.env.DATABASE_URL;
 console.log('Database connection string:', connectionString ? 'Set' : 'Not set');
 
-const pool = new Pool({
-    connectionString,
-    // 明示的な設定
-    ssl: false,
-});
+// 接続プールとPrismaクライアントをグローバルで保持し、ホットリロード時のリソースリークを防ぐ
+let pool: pg.Pool;
+let prisma: PrismaClient;
 
-// Prismaクライアントのシングルトンインスタンス
-const prisma = new PrismaClient({
-    adapter: new PrismaPg(pool),
-    log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
-});
+if (process.env.NODE_ENV === 'production') {
+    pool = new Pool({ connectionString, ssl: false });
+    prisma = new PrismaClient({
+        adapter: new PrismaPg(pool),
+        log: ['error'],
+    });
+} else {
+    // 開発時はグローバル変数に保存して再利用
+    if (!(global as any).pool) {
+        (global as any).pool = new Pool({ connectionString, ssl: false });
+    }
+    pool = (global as any).pool;
+
+    if (!(global as any).prisma) {
+        (global as any).prisma = new PrismaClient({
+            adapter: new PrismaPg(pool),
+            log: ['query', 'error', 'warn'],
+        });
+    }
+    prisma = (global as any).prisma;
+}
+
+/**
+ * クリーンアップ処理
+ */
+export const closePrisma = async () => {
+    await prisma.$disconnect();
+    await pool.end();
+};
 
 export default prisma;

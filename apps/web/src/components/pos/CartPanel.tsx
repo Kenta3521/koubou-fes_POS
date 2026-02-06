@@ -9,6 +9,7 @@
 import { useState } from 'react';
 import { Minus, Plus, Trash2, ShoppingCart, ChevronUp, ChevronDown, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import type { CartItem } from '@/stores/cartStore';
@@ -18,6 +19,7 @@ interface CartPanelProps {
     total: number;
     itemCount: number;
     isMobile?: boolean; // モバイルモードかどうか
+    productDiscounts?: { [productId: string]: { name: string; type: string; value: number } | null };
     onUpdateQuantity: (productId: string, quantity: number) => void;
     onRemoveItem: (productId: string) => void;
     onClearCart: () => void;
@@ -29,6 +31,7 @@ export function CartPanel({
     total,
     itemCount,
     isMobile = false,
+    productDiscounts = {},
     onUpdateQuantity,
     onRemoveItem,
     onClearCart,
@@ -87,22 +90,46 @@ export function CartPanel({
                             ? editingQuantity[item.productId]
                             : item.quantity.toString();
 
+                        // 割引情報を取得
+                        const discount = productDiscounts[item.productId];
+                        const discountedPrice = discount
+                            ? discount.type === 'PERCENT'
+                                ? Math.floor(item.price * (1 - discount.value / 100))
+                                : item.price - discount.value
+                            : item.price;
+
                         return (
                             <div key={item.productId} className="py-3">
                                 {/* 商品名と小計 */}
                                 <div className="flex items-start justify-between mb-2">
-                                    <span className="font-medium text-sm text-gray-900 leading-tight pr-2">
-                                        {item.name}
-                                    </span>
+                                    <div className="flex flex-col pr-2">
+                                        <span className="font-medium text-sm text-gray-900 leading-tight">
+                                            {item.name}
+                                        </span>
+                                        {/* 割引バッジ */}
+                                        {discount && (
+                                            <Badge className="mt-1 w-fit text-[10px] px-1.5 py-0.5 bg-green-500 hover:bg-green-600">
+                                                {discount.type === 'PERCENT' ? `${discount.value}%OFF` : `¥${discount.value}OFF`}
+                                            </Badge>
+                                        )}
+                                    </div>
                                     <span className="font-bold text-base text-gray-900 shrink-0">
-                                        ¥{(item.price * item.quantity).toLocaleString()}
+                                        ¥{(discountedPrice * item.quantity).toLocaleString()}
                                     </span>
                                 </div>
 
                                 <div className="flex items-center justify-between">
-                                    <span className="text-xs text-gray-500">
-                                        @¥{item.price.toLocaleString()}
-                                    </span>
+                                    {/* 単価表示 */}
+                                    <div className="flex flex-col text-xs text-gray-500">
+                                        {discount ? (
+                                            <>
+                                                <span className="line-through">@¥{item.price.toLocaleString()}</span>
+                                                <span className="text-green-600 font-medium">@¥{discountedPrice.toLocaleString()}</span>
+                                            </>
+                                        ) : (
+                                            <span>@¥{item.price.toLocaleString()}</span>
+                                        )}
+                                    </div>
 
                                     <div className="flex items-center gap-2">
                                         <Button

@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate, useLocation, useParams } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { ChevronLeft, X, AlertCircle, Loader2, Clock } from 'lucide-react';
+import { X, AlertCircle, Loader2, Clock, CheckCircle2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
+import { useCartStore } from '@/stores/cartStore';
 import { CalculationResult } from '@koubou-fes-pos/shared';
 import { cn } from '@/lib/utils';
 import { socket } from '@/lib/socket';
@@ -21,24 +22,24 @@ const PayPayPaymentPage: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { activeOrganizationId } = useAuthStore();
+    const { clearCart } = useCartStore();
 
     // Get calculation from location state (from OrderConfirmationPage)
     const calculation = location.state?.calculation as CalculationResult;
-    // We would ideally have the transaction ID passed through or navigate after creation
-    // For now, assuming location.state has the transaction created or we create it here
-    // Let's check how we get here. OrderConfirmationPage calls calculate but createTransaction 
-    // happens when one of the payment buttons is clicked.
-    // In CashPaymentPage, completeTransaction is called at the end.
-    // In PayPay, we need to create the transaction FIRST to get the ID for PayPay create API.
+    const manualDiscountId = location.state?.manualDiscountId as string | undefined;
 
     const [transaction, setTransaction] = useState<any>(null);
     const [paypayData, setPayPayData] = useState<PayPayResponse | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [timeLeft, setTimeLeft] = useState(300); // 5 minutes
+    const [paymentStatus, setPaymentStatus] = useState<'waiting' | 'success' | 'expired'>('waiting');
+
+    // Lock to prevent duplicate initialization (React StrictMode mounts twice)
+    const initialized = React.useRef(false);
+
     // Debug state
-    const [isConnected] = useState(socket.connected);
-    // const [lastEvent, setLastEvent] = useState<any>(null);
+    const [, setIsConnected] = useState(socket.connected);
 
     useEffect(() => {
         function onConnect() {
@@ -49,9 +50,8 @@ const PayPayPaymentPage: React.FC = () => {
             setIsConnected(false);
             console.log('Socket Disconnected');
         }
-        function onConnectError(err: any) {
+        function onConnectError(err: Error) {
             console.error('Socket Connection Error:', err);
-            setLastEvent({ type: 'error', message: err.message });
         }
 
         socket.on('connect', onConnect);
@@ -65,11 +65,67 @@ const PayPayPaymentPage: React.FC = () => {
         };
     }, []);
 
+    const handleCancel = useCallback(async () => {
+        if (window.confirm('決済をキャンセルしてもよろしいですか？')) {
+            if (transaction) {
+                try {
+                    await api.post(`/organizations/${activeOrganizationId}/transactions/${transaction.id}/cancel`);
+                } catch (err) {
+                    console.error('Cancel failed:', err);
+                }
+            }
+            clearCart();
+            navigate('/pos');
+        }
+    }, [activeOrganizationId, transaction, navigate, clearCart]);
+
+    const handleTimeout = useCallback(async () => {
+        setPaymentStatus('expired');
+        setError('有効期限が切れました。注文をやり直してください。');
+        if (transaction) {
+            try {
+                await api.post(`/organizations/${activeOrganizationId}/transactions/${transaction.id}/cancel`);
+            } catch (err) {
+                console.error('Timeout cleanup failed:', err);
+            }
+        }
+        clearCart();
+    }, [activeOrganizationId, transaction, clearCart]);
+
+    const checkStatus = useCallback(async (isManual = false) => {
+        if (!transaction || !activeOrganizationId || paymentStatus !== 'waiting') return;
+
+        try {
+            const res = await api.get(`/organizations/${activeOrganizationId}/transactions/${transaction.id}/paypay/status`);
+            const data = res.data.data;
+            console.log('Status check:', data);
+
+            // Check if transaction is completed locally or in PayPay
+            if (data.status === 'COMPLETED' || data.paypayStatus === 'COMPLETED' || data.paypayStatus === 'SUCCESS') {
+                setPaymentStatus('success');
+                clearCart();
+                // Give user a moment to see the success state
+                setTimeout(() => {
+                    navigate('/pos/complete', { state: { transaction: { ...transaction, status: 'COMPLETED' }, calculation } });
+                }, 1500);
+                return;
+            }
+
+            if (isManual) {
+                alert(`決済はまだ完了していません。\nPayPayステータス: ${data.paypayStatus}`);
+            }
+        } catch (err) {
+            console.error('Status check failed:', err);
+            if (isManual) alert('ステータスの確認に失敗しました');
+        }
+    }, [activeOrganizationId, transaction, calculation, navigate, paymentStatus, clearCart]);
+
 
 
     const createTransactionAndQR = useCallback(async () => {
-        if (!activeOrganizationId || !calculation) return;
+        if (!activeOrganizationId || !calculation || initialized.current) return;
 
+        initialized.current = true;
         setIsLoading(true);
         setError(null);
         try {
@@ -80,7 +136,7 @@ const PayPayPaymentPage: React.FC = () => {
                     quantity: item.quantity
                 })),
                 paymentMethod: 'PAYPAY',
-                manualDiscountId: calculation.appliedOrderDiscount?.id
+                manualDiscountId: manualDiscountId || undefined
             });
 
             const txn = txnResponse.data.data;
@@ -95,10 +151,12 @@ const PayPayPaymentPage: React.FC = () => {
         } catch (err: any) {
             console.error('PayPay init failed:', err);
             setError(err.response?.data?.error?.message || 'PayPayの準備に失敗しました');
+            // Allow retry if failed
+            initialized.current = false;
         } finally {
             setIsLoading(false);
         }
-    }, [activeOrganizationId, calculation]);
+    }, [activeOrganizationId, calculation, manualDiscountId]);
 
     useEffect(() => {
         if (!calculation) {
@@ -133,11 +191,11 @@ const PayPayPaymentPage: React.FC = () => {
 
         const onPaymentComplete = (data: any) => {
             console.log('Payment completed via socket:', data);
-            setLastEvent(data); // for debug
 
             // Loose check for transaction ID to handle potential string/number mismatches (though unlikely with UUID)
             if (data.transactionId === transaction.id) {
                 console.log('Navigating to complete page for transaction:', transaction.id);
+                clearCart();
                 navigate('/pos/complete', { state: { transaction: { ...transaction, status: 'COMPLETED' }, calculation } });
             } else {
                 console.warn('Received completion for different transaction:', data.transactionId);
@@ -168,14 +226,13 @@ const PayPayPaymentPage: React.FC = () => {
 
     // Timer effect
     useEffect(() => {
-        if (!paypayData || timeLeft <= 0) return;
+        if (!paypayData || timeLeft <= 0 || paymentStatus !== 'waiting') return;
 
         const timer = setInterval(() => {
             setTimeLeft(prev => {
                 if (prev <= 1) {
                     clearInterval(timer);
-                    // Handle timeout (P3-009)
-                    // navigate('/pos', { state: { error: 'タイムアウトしました' } });
+                    handleTimeout();
                     return 0;
                 }
                 return prev - 1;
@@ -183,7 +240,7 @@ const PayPayPaymentPage: React.FC = () => {
         }, 1000);
 
         return () => clearInterval(timer);
-    }, [paypayData, timeLeft]);
+    }, [paypayData, timeLeft, paymentStatus, handleTimeout]);
 
     const formatTime = (seconds: number) => {
         const mins = Math.floor(seconds / 60);
@@ -191,18 +248,17 @@ const PayPayPaymentPage: React.FC = () => {
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
 
-    const handleCancel = async () => {
-        if (window.confirm('決済をキャンセルしてもよろしいですか？')) {
-            if (transaction) {
-                try {
-                    await api.post(`/organizations/${activeOrganizationId}/transactions/${transaction.id}/cancel`);
-                } catch (err) {
-                    console.error('Cancel failed:', err);
-                }
-            }
-            navigate('/pos');
-        }
-    };
+    // Polling Effect
+    useEffect(() => {
+        if (!transaction || !paypayData || paymentStatus !== 'waiting') return;
+
+        // Poll every 2 seconds for snappier feedback
+        const intervalId = setInterval(() => {
+            checkStatus(false);
+        }, 2000);
+
+        return () => clearInterval(intervalId);
+    }, [transaction, paypayData, checkStatus, paymentStatus]);
 
     if (isLoading) {
         return (
@@ -243,19 +299,37 @@ const PayPayPaymentPage: React.FC = () => {
                         </p>
                     </div>
 
-                    <div className="flex justify-center bg-white p-6 rounded-3xl shadow-xl border-4 border-red-500 mx-auto w-fit">
+                    <div className="flex justify-center bg-white p-6 rounded-3xl shadow-xl border-4 border-red-500 mx-auto w-fit relative overflow-hidden">
                         {paypayData?.qrCodeUrl && (
-                            <QRCodeSVG
-                                value={paypayData.qrCodeUrl}
-                                size={260}
-                                level="M"
-                                includeMargin={false}
-                            />
+                            <>
+                                <QRCodeSVG
+                                    value={paypayData.qrCodeUrl}
+                                    size={260}
+                                    level="M"
+                                    includeMargin={false}
+                                    className={cn(paymentStatus !== 'waiting' && "opacity-20 blur-sm")}
+                                />
+                                {paymentStatus === 'expired' && (
+                                    <div className="absolute inset-0 flex items-center justify-center bg-white/60">
+                                        <div className="text-red-600 font-bold text-xl rotate-12 border-4 border-red-600 px-4 py-2">
+                                            EXPIRED
+                                        </div>
+                                    </div>
+                                )}
+                                {paymentStatus === 'success' && (
+                                    <div className="absolute inset-0 flex items-center justify-center bg-white/40">
+                                        <CheckCircle2 className="h-24 w-24 text-green-500 animate-bounce" />
+                                    </div>
+                                )}
+                            </>
                         )}
                     </div>
 
-                    <p className="text-sm font-bold text-red-600">
-                        PayPayでスキャンしてください
+                    <p className={cn(
+                        "text-sm font-bold",
+                        paymentStatus === 'success' ? "text-green-600" : "text-red-600"
+                    )}>
+                        {paymentStatus === 'success' ? "お支払いが完了しました！" : "PayPayでスキャンしてください"}
                     </p>
                 </div>
             </div>
@@ -273,7 +347,7 @@ const PayPayPaymentPage: React.FC = () => {
                         </div>
                         <div className={cn(
                             "text-2xl font-bold",
-                            timeLeft < 60 ? "text-red-600 animate-pulse" : "text-gray-900"
+                            timeLeft < 60 && paymentStatus === 'waiting' ? "text-red-600 animate-pulse" : "text-gray-900"
                         )}>
                             {formatTime(timeLeft)}
                         </div>
@@ -292,9 +366,23 @@ const PayPayPaymentPage: React.FC = () => {
                                 <p className="text-sm text-gray-500">お預かり金額 (PayPay)</p>
                                 <p className="text-2xl font-bold text-gray-900">¥{calculation.totalAmount.toLocaleString()}</p>
                             </div>
-                            <div className="bg-red-100 text-red-600 px-3 py-1 rounded-full text-xs font-bold">
-                                決済待受中
-                            </div>
+
+                            {paymentStatus === 'waiting' ? (
+                                <div className="bg-red-100 text-red-600 px-3 py-1.5 rounded-full text-xs font-bold flex items-center shadow-sm border border-red-200">
+                                    <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                                    決済待受中
+                                </div>
+                            ) : paymentStatus === 'success' ? (
+                                <div className="bg-green-100 text-green-600 px-3 py-1.5 rounded-full text-xs font-bold flex items-center shadow-sm border border-green-200 animate-in zoom-in duration-300">
+                                    <CheckCircle2 className="mr-2 h-3.5 w-3.5" />
+                                    決済完了
+                                </div>
+                            ) : (
+                                <div className="bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full text-xs font-bold flex items-center border border-gray-200">
+                                    <X className="mr-2 h-3.5 w-3.5" />
+                                    期限切れ
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 </div>
@@ -303,24 +391,9 @@ const PayPayPaymentPage: React.FC = () => {
                     <Button
                         variant="secondary"
                         className="h-14 bg-blue-50 text-blue-600 hover:bg-blue-100 border-blue-200"
-                        onClick={async () => {
-                            if (!transaction) return;
-                            try {
-                                const res = await api.get(`/organizations/${activeOrganizationId}/transactions/${transaction.id}/paypay/status`);
-                                const data = res.data.data;
-                                console.log('Manual status check:', data);
-                                if (data.status === 'COMPLETED') {
-                                    navigate('/pos/complete', { state: { transaction: { ...transaction, status: 'COMPLETED' }, calculation } });
-                                } else {
-                                    alert(`決済はまだ完了していません。\nPayPayステータス: ${data.paypayStatus}`);
-                                }
-                            } catch (err) {
-                                console.error('Status check failed:', err);
-                                alert('ステータスの確認に失敗しました');
-                            }
-                        }}
+                        onClick={() => checkStatus(true)}
+                        disabled={paymentStatus !== 'waiting'}
                     >
-                        <Loader2 className="mr-2 h-5 w-5 animate-spin hidden" /> {/* Placeholder for loading state if needed */}
                         支払い状況を確認する
                     </Button>
 
@@ -330,7 +403,7 @@ const PayPayPaymentPage: React.FC = () => {
                         onClick={handleCancel}
                     >
                         <X className="mr-2 h-5 w-5" />
-                        決済をキャンセル
+                        {paymentStatus === 'expired' ? "POS画面に戻る" : "決済をキャンセル"}
                     </Button>
                 </div>
             </div>

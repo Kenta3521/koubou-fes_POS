@@ -14,6 +14,7 @@ interface ProductCardProps {
     isActive: boolean;
     categoryId: string;
     quantityInCart?: number;
+    discount?: { name: string; type: string; value: number } | null;
     onTap: (product: { id: string; name: string; price: number; categoryId: string }) => void;
 }
 
@@ -24,12 +25,20 @@ export function ProductCard({
     isActive,
     categoryId,
     quantityInCart = 0,
+    discount,
     onTap
 }: ProductCardProps) {
     const handleClick = () => {
         if (!isActive) return; // 売り切れは追加不可
         onTap({ id, name, price, categoryId });
     };
+
+    // 割引後の価格を計算
+    const discountedPrice = discount
+        ? discount.type === 'PERCENT'
+            ? Math.floor(price * (1 - discount.value / 100))
+            : price - discount.value
+        : price;
 
     return (
         <button
@@ -61,7 +70,16 @@ export function ProductCard({
                     variant="destructive"
                     className="absolute top-2 left-2 text-[10px] px-1.5 py-0.5 z-10"
                 >
-                    SOLD
+                    {quantityInCart > 0 ? 'LIMIT' : 'SOLD'}
+                </Badge>
+            )}
+
+            {/* 割引バッジ (左上、売り切れでない場合) */}
+            {isActive && discount && (
+                <Badge
+                    className="absolute top-2 left-2 text-[10px] px-1.5 py-0.5 z-10 bg-green-500 hover:bg-green-600"
+                >
+                    {discount.type === 'PERCENT' ? `${discount.value}%OFF` : `¥${discount.value}OFF`}
                 </Badge>
             )}
 
@@ -84,12 +102,25 @@ export function ProductCard({
             </span>
 
             {/* 価格 */}
-            <span className={cn(
-                "text-base font-bold mt-1.5",
-                isActive ? "text-orange-600" : "text-gray-400"
-            )}>
-                ¥{price.toLocaleString()}
-            </span>
+            <div className="flex flex-col items-center mt-1.5">
+                {discount && isActive ? (
+                    <>
+                        <span className="text-sm text-gray-400 line-through">
+                            ¥{price.toLocaleString()}
+                        </span>
+                        <span className="text-xl font-bold text-green-600">
+                            ¥{discountedPrice.toLocaleString()}
+                        </span>
+                    </>
+                ) : (
+                    <span className={cn(
+                        "text-xl font-bold",
+                        isActive ? "text-orange-600" : "text-gray-400"
+                    )}>
+                        ¥{price.toLocaleString()}
+                    </span>
+                )}
+            </div>
         </button>
     );
 }

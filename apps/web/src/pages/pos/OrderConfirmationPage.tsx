@@ -73,6 +73,38 @@ const OrderConfirmationPage: React.FC = () => {
 
     if (!calculation) return null;
 
+    // 割引の内訳を集計
+    const getDiscountBreakdown = () => {
+        const discounts = new Map<string, { name: string; amount: number }>();
+
+        // アイテムレベルの割引を集計
+        calculation.items.forEach(item => {
+            if (item.appliedDiscount && item.discountAmount > 0) {
+                const key = item.appliedDiscount.id;
+                const current = discounts.get(key) || { name: item.appliedDiscount.name, amount: 0 };
+                current.amount += item.discountAmount * item.quantity;
+                discounts.set(key, current);
+            }
+        });
+
+        // オーダーレベルの割引を追加
+        if (calculation.appliedOrderDiscount) {
+            const totalItemDiscounts = calculation.items.reduce((sum, item) => sum + (item.discountAmount * item.quantity || 0), 0);
+            const orderDiscountAmount = calculation.totalDiscountAmount - totalItemDiscounts;
+
+            if (orderDiscountAmount > 0) {
+                const key = calculation.appliedOrderDiscount.id;
+                const current = discounts.get(key) || { name: calculation.appliedOrderDiscount.name, amount: 0 };
+                current.amount += orderDiscountAmount;
+                discounts.set(key, current);
+            }
+        }
+
+        return Array.from(discounts.values());
+    };
+
+    const discountBreakdown = getDiscountBreakdown();
+
     return (
         <div className="flex flex-col h-screen bg-gray-50">
             {/* Header */}
@@ -91,24 +123,31 @@ const OrderConfirmationPage: React.FC = () => {
                         <CardTitle className="text-lg">注文商品</CardTitle>
                     </CardHeader>
                     <CardContent className="grid gap-4">
-                        {calculation.items.map((item: CalculatedItem) => (
-                            <div key={item.productId} className="flex justify-between items-start">
-                                <div>
-                                    <div className="font-medium">{item.productName}</div>
-                                    <div className="text-sm text-gray-500">
-                                        x{item.quantity} (単価: ¥{item.originalPrice})
-                                    </div>
-                                    {item.appliedDiscount && (
-                                        <div className="text-sm text-green-600">
-                                            {item.appliedDiscount.name}: -¥{item.discountAmount * item.quantity}
+                        {calculation.items.map((item: CalculatedItem) => {
+                            const hasDiscount = item.discountAmount > 0;
+                            const originalPrice = item.originalPrice || item.unitPrice;
+
+                            return (
+                                <div key={item.productId} className="flex justify-between items-start">
+                                    <div>
+                                        <div className="font-medium">{item.productName}</div>
+                                        <div className="text-sm text-gray-500">
+                                            x{item.quantity} @ {hasDiscount ? (
+                                                <span className="inline-flex flex-col gap-0.5">
+                                                    <span className="line-through text-gray-400">¥{originalPrice.toLocaleString()}</span>
+                                                    <span className="text-green-600 font-medium">¥{item.unitPrice.toLocaleString()}</span>
+                                                </span>
+                                            ) : (
+                                                <span>¥{item.unitPrice.toLocaleString()}</span>
+                                            )}
                                         </div>
-                                    )}
+                                    </div>
+                                    <div className="text-right font-medium">
+                                        ¥{(item.unitPrice * item.quantity).toLocaleString()}
+                                    </div>
                                 </div>
-                                <div className="text-right font-medium">
-                                    ¥{item.unitPrice * item.quantity}
-                                </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </CardContent>
                 </Card>
 
@@ -119,17 +158,23 @@ const OrderConfirmationPage: React.FC = () => {
                             <span>小計 (割引前)</span>
                             <span>¥{calculation.subtotalAmount.toLocaleString()}</span>
                         </div>
-                        {calculation.totalDiscountAmount > 0 && (
-                            <div className="flex justify-between text-green-600">
-                                <span>割引合計</span>
-                                <span>-¥{calculation.totalDiscountAmount.toLocaleString()}</span>
-                            </div>
-                        )}
-                        {calculation.appliedOrderDiscount && (
-                            <div className="flex justify-between text-sm text-green-600 pl-4">
-                                <span>└ {calculation.appliedOrderDiscount.name}</span>
-                                <span>適用中</span>
-                            </div>
+
+                        {/* 割引の内訳 */}
+                        {discountBreakdown.length > 0 && (
+                            <>
+                                <div className="flex justify-between text-green-600 font-medium">
+                                    <span>割引合計</span>
+                                    <span>-¥{calculation.totalDiscountAmount.toLocaleString()}</span>
+                                </div>
+                                <div className="pl-4 space-y-1 border-l-2 border-green-200 ml-2">
+                                    {discountBreakdown.map((discount, idx) => (
+                                        <div key={idx} className="flex justify-between text-sm text-green-600">
+                                            <span>• {discount.name}</span>
+                                            <span>-¥{discount.amount.toLocaleString()}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </>
                         )}
 
                         <Separator className="my-2" />
@@ -158,7 +203,12 @@ const OrderConfirmationPage: React.FC = () => {
                 <Button
                     variant="default"
                     className="w-full h-14 text-lg bg-green-600 hover:bg-green-700"
-                    onClick={() => navigate('/pos/payment/cash', { state: { calculation } })}
+                    onClick={() => navigate('/pos/payment/cash', {
+                        state: {
+                            calculation,
+                            manualDiscountId: selectedManualDiscountId
+                        }
+                    })}
                 >
                     <Banknote className="mr-2 h-6 w-6" />
                     現金で支払う
@@ -166,7 +216,12 @@ const OrderConfirmationPage: React.FC = () => {
                 <Button
                     variant="default"
                     className="w-full h-14 text-lg bg-red-500 hover:bg-red-600"
-                    onClick={() => navigate('/pos/payment/paypay', { state: { calculation } })}
+                    onClick={() => navigate('/pos/payment/paypay', {
+                        state: {
+                            calculation,
+                            manualDiscountId: selectedManualDiscountId
+                        }
+                    })}
                 >
                     <Smartphone className="mr-2 h-6 w-6" />
                     PayPayで支払う

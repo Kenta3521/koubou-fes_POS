@@ -16,6 +16,7 @@ export default function CashPaymentPage() {
     const { items, clearCart } = useCartStore();
 
     const calculation = location.state?.calculation as CalculationResult;
+    const manualDiscountId = location.state?.manualDiscountId as string | undefined;
     const totalAmount = calculation?.totalAmount || 0;
 
     const [depositAmount, setDepositAmount] = useState(0);
@@ -69,6 +70,7 @@ export default function CashPaymentPage() {
                     quantity: item.quantity,
                 })),
                 paymentMethod: 'CASH',
+                manualDiscountId: manualDiscountId || undefined,
                 depositAmount,
                 changeAmount: change,
             });
@@ -109,7 +111,10 @@ export default function CashPaymentPage() {
                 <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => navigate(-1)}
+                    onClick={() => {
+                        clearCart();
+                        navigate('/pos');
+                    }}
                     className="p-2"
                 >
                     <ChevronLeft className="h-5 w-5" />

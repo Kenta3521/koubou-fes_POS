@@ -13,6 +13,7 @@ import { ProductGrid } from '@/components/pos/ProductGrid';
 import { CartPanel } from '@/components/pos/CartPanel';
 import { useCategories } from '@/hooks/useCategories';
 import { useProducts } from '@/hooks/useProducts';
+import { useAutoDiscounts } from '@/hooks/useAutoDiscounts';
 import { useCartStore } from '@/stores/cartStore';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -27,6 +28,7 @@ export default function OrderEntryPage() {
     // APIデータ取得
     const { data: categories = [], isLoading: categoriesLoading } = useCategories();
     const { data: products = [], isLoading: productsLoading } = useProducts();
+    const { data: autoDiscounts = [] } = useAutoDiscounts();
 
     // カートストア
     const {
@@ -35,7 +37,6 @@ export default function OrderEntryPage() {
         updateQuantity,
         removeItem,
         clearCart,
-        getTotal,
         getItemCount,
     } = useCartStore();
 
@@ -56,8 +57,46 @@ export default function OrderEntryPage() {
         return quantities;
     }, [cartItems]);
 
+    // 商品の割引情報マップ
+    const productDiscounts = useMemo(() => {
+        const discountMap: { [productId: string]: { name: string; type: string; value: number } | null } = {};
+
+        products.forEach(product => {
+            const applicableDiscount = autoDiscounts.find(d => {
+                if (d.targetType === 'SPECIFIC_PROD' && d.targetProductId === product.id) {
+                    return true;
+                }
+                if (d.targetType === 'CATEGORY' && d.targetCategoryId === product.categoryId) {
+                    return true;
+                }
+                return false;
+            });
+
+            discountMap[product.id] = applicableDiscount ? {
+                name: applicableDiscount.name,
+                type: applicableDiscount.type,
+                value: applicableDiscount.value
+            } : null;
+        });
+
+        return discountMap;
+    }, [products, autoDiscounts]);
+
+    // 割引を適用した合計金額を計算
+    const discountedTotal = useMemo(() => {
+        return cartItems.reduce((total, item) => {
+            const discount = productDiscounts[item.productId];
+            const discountedPrice = discount
+                ? discount.type === 'PERCENT'
+                    ? Math.floor(item.price * (1 - discount.value / 100))
+                    : item.price - discount.value
+                : item.price;
+            return total + discountedPrice * item.quantity;
+        }, 0);
+    }, [cartItems, productDiscounts]);
+
     // 商品追加ハンドラ
-    const handleProductTap = (product: { id: string; name: string; price: number; categoryId: string }) => {
+    const handleProductTap = (product: { id: string; name: string; price: number; categoryId: string; stock: number }) => {
         addItem(product);
         // 追加フィードバック (振動APIがあれば)
         if (navigator.vibrate) {
@@ -67,7 +106,8 @@ export default function OrderEntryPage() {
 
     // 数量更新ハンドラ
     const handleUpdateQuantity = (productId: string, quantity: number) => {
-        updateQuantity(productId, quantity);
+        const product = products.find(p => p.id === productId);
+        updateQuantity(productId, quantity, product?.stock);
     };
 
     // アイテム削除ハンドラ
@@ -115,9 +155,10 @@ export default function OrderEntryPage() {
                     <div className="absolute bottom-0 left-0 right-0 z-20">
                         <CartPanel
                             items={cartItems}
-                            total={getTotal()}
+                            total={discountedTotal}
                             itemCount={getItemCount()}
                             isMobile={true}
+                            productDiscounts={productDiscounts}
                             onUpdateQuantity={handleUpdateQuantity}
                             onRemoveItem={handleRemoveItem}
                             onClearCart={handleClearCart}
@@ -132,9 +173,10 @@ export default function OrderEntryPage() {
                 <div className="w-[320px] lg:w-[360px] shrink-0 border-l border-gray-200">
                     <CartPanel
                         items={cartItems}
-                        total={getTotal()}
+                        total={discountedTotal}
                         itemCount={getItemCount()}
                         isMobile={false}
+                        productDiscounts={productDiscounts}
                         onUpdateQuantity={handleUpdateQuantity}
                         onRemoveItem={handleRemoveItem}
                         onClearCart={handleClearCart}

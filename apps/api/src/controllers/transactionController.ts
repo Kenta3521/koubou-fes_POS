@@ -413,18 +413,32 @@ export const checkPayPayStatus = async (req: Request, res: Response, next: NextF
             });
         }
 
-        // Call PayPay API to get payment details
-        const detailsResponse = await (PAYPAY as any).GetPaymentDetails([transaction.paypayOrderId]);
-
-        // Note: The SDK response structure usually contains BODY or actual response depending on version.
-        // Based on previous createPayPayPayment, we expect response.BODY.
+        // Call PayPay API to get payment details using GetCodePaymentDetails (per official flow for Dynamic QR)
+        // See: Dynamic QR Code Integration Flow -> GET /v2/codes/payments/{merchantPaymentId}
+        // Note: SDK expects an array for merchantPaymentId
+        const detailsResponse = await (PAYPAY as any).GetCodePaymentDetails([transaction.paypayOrderId]);
 
         let paypayStatus = 'UNKNOWN';
         if (detailsResponse.BODY && detailsResponse.BODY.resultInfo.code === 'SUCCESS') {
             paypayStatus = detailsResponse.BODY.data.status;
+
+            // If the status is CREATED, it means QR is generated but not yet paid.
+            // If API returns success but status is CREATED, we treat it as PENDING.
+            if (paypayStatus === 'CREATED') {
+                paypayStatus = 'PENDING';
+            }
         } else {
+            const code = detailsResponse.BODY?.resultInfo?.code;
+            const message = detailsResponse.BODY?.resultInfo?.message;
             console.error('PayPay Status Check Failed:', detailsResponse.BODY || detailsResponse);
-            // Not returning error to client, but unknown status
+
+            // If "Dynamic QR payment not found" or "CREATED", it implies the payment hasn't been completed yet -> PENDING
+            if (
+                code === 'DYNAMIC_QR_PAYMENT_NOT_FOUND' ||
+                message?.includes('not found')
+            ) {
+                paypayStatus = 'PENDING';
+            }
         }
 
         console.log(`PayPay Status for ${transactionId}: ${paypayStatus}, Local Status: ${transaction.status}`);
@@ -459,6 +473,124 @@ export const checkPayPayStatus = async (req: Request, res: Response, next: NextF
 
     } catch (error: any) {
         console.error('Check PayPay status error:', error);
+        next(error);
+    }
+};
+
+/**
+ * 取引一覧取得 (P4-028)
+ * GET /api/v1/organizations/:orgId/transactions
+ */
+export const getTransactions = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { orgId } = req.params;
+        const page = parseInt(req.query.page as string) || 1;
+        const limit = parseInt(req.query.limit as string) || 20;
+        const skip = (page - 1) * limit;
+
+        const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
+        const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
+        // EndDateをその日の終わりに設定
+        if (endDate) {
+            endDate.setHours(23, 59, 59, 999);
+        }
+
+        const paymentMethod = req.query.paymentMethod as string;
+        const status = req.query.status as TransactionStatus;
+
+        // 検索条件の構築
+        const where: any = {
+            organizationId: orgId,
+        };
+
+        if (startDate || endDate) {
+            where.createdAt = {};
+            if (startDate) where.createdAt.gte = startDate;
+            if (endDate) where.createdAt.lte = endDate;
+        }
+
+        if (paymentMethod) {
+            where.paymentMethod = paymentMethod;
+        }
+
+        if (status) {
+            where.status = status;
+        }
+
+        const [total, transactions] = await Promise.all([
+            prisma.transaction.count({ where }),
+            prisma.transaction.findMany({
+                where,
+                skip,
+                take: limit,
+                orderBy: { createdAt: 'desc' },
+                include: {
+                    user: {
+                        select: { name: true }
+                    }
+                }
+            })
+        ]);
+
+        res.json({
+            success: true,
+            data: transactions,
+            meta: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit),
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * 取引詳細取得 (P4-029)
+ * GET /api/v1/organizations/:orgId/transactions/:id
+ */
+export const getTransactionDetail = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { orgId, id: transactionId } = req.params;
+
+        const transaction = await prisma.transaction.findUnique({
+            where: { id: transactionId },
+            include: {
+                user: { select: { id: true, name: true, email: true } },
+                items: {
+                    include: {
+                        product: { select: { name: true } },
+                        discount: true // Include applied discount details
+                    }
+                },
+                discount: true // Global discount
+            }
+        });
+
+        if (!transaction) {
+            return res.status(404).json({
+                success: false,
+                error: {
+                    code: 'TRANSACTION_NOT_FOUND',
+                    message: '取引が見つかりません'
+                }
+            });
+        }
+
+        if (transaction.organizationId !== orgId) {
+            return res.status(403).json({
+                success: false,
+                error: { code: 'FORBIDDEN', message: 'この組織の取引ではありません' }
+            });
+        }
+
+        res.json({
+            success: true,
+            data: transaction
+        });
+    } catch (error) {
         next(error);
     }
 };

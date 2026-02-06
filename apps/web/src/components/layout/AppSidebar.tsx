@@ -10,7 +10,8 @@ import {
     Tags,
     Users,
     ChevronsUpDown,
-    Check
+    Check,
+    History
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { useCartStore } from '@/stores/cartStore';
@@ -150,22 +151,21 @@ export function AppSidebar() {
                         <SidebarGroupContent>
                             <SidebarMenu>
                                 <SidebarMenuItem>
-                                    <SidebarMenuButton asChild isActive={location.pathname === '/'}>
-                                        <Link to="/">
-                                            <LayoutDashboard />
-                                            <span>ダッシュボード</span>
-                                        </Link>
+                                    <SidebarMenuButton
+                                        onClick={() => window.location.href = '/'}
+                                        isActive={location.pathname === '/'}
+                                    >
+                                        <LayoutDashboard />
+                                        <span>ダッシュボード</span>
                                     </SidebarMenuButton>
                                 </SidebarMenuItem>
                                 <SidebarMenuItem>
                                     <SidebarMenuButton
-                                        asChild
+                                        onClick={() => window.location.href = '/pos'}
                                         isActive={location.pathname.startsWith('/pos')}
                                     >
-                                        <Link to="/pos">
-                                            <ShoppingBasket />
-                                            <span>POSレジ</span>
-                                        </Link>
+                                        <ShoppingBasket />
+                                        <span>POSレジ</span>
                                     </SidebarMenuButton>
                                 </SidebarMenuItem>
                             </SidebarMenu>
@@ -179,36 +179,50 @@ export function AppSidebar() {
                             <SidebarGroupContent>
                                 <SidebarMenu>
                                     <SidebarMenuItem>
-                                        <SidebarMenuButton asChild isActive={location.pathname.includes('/categories')}>
-                                            <Link to={`/admin/${activeOrganizationId}/categories`}>
-                                                <Tags />
-                                                <span>商品カテゴリ</span>
-                                            </Link>
+                                        <SidebarMenuButton
+                                            onClick={() => window.location.href = `/admin/${activeOrganizationId}/categories`}
+                                            isActive={location.pathname.includes('/categories')}
+                                        >
+                                            <Tags />
+                                            <span>商品カテゴリ</span>
                                         </SidebarMenuButton>
                                     </SidebarMenuItem>
                                     <SidebarMenuItem>
-                                        <SidebarMenuButton asChild isActive={location.pathname.includes('/products')}>
-                                            <Link to={`/admin/${activeOrganizationId}/products`}>
-                                                <ListFilter />
-                                                <span>商品管理</span>
-                                            </Link>
+                                        <SidebarMenuButton
+                                            onClick={() => window.location.href = `/admin/${activeOrganizationId}/products`}
+                                            isActive={location.pathname.includes('/products')}
+                                        >
+                                            <ListFilter />
+                                            <span>商品管理</span>
                                         </SidebarMenuButton>
                                     </SidebarMenuItem>
                                     <SidebarMenuItem>
-                                        <SidebarMenuButton asChild isActive={location.pathname.includes('/discounts')}>
-                                            <Link to={`/admin/${activeOrganizationId}/discounts`}>
-                                                <Tags />
-                                                <span>割引管理</span>
-                                            </Link>
+                                        <SidebarMenuButton
+                                            onClick={() => window.location.href = `/admin/${activeOrganizationId}/discounts`}
+                                            isActive={location.pathname.includes('/discounts')}
+                                        >
+                                            <Tags />
+                                            <span>割引管理</span>
                                         </SidebarMenuButton>
                                     </SidebarMenuItem>
 
                                     <SidebarMenuItem>
-                                        <SidebarMenuButton asChild isActive={location.pathname.includes('/staff')}>
-                                            <Link to={`/admin/${activeOrganizationId}/staff`}>
-                                                <Users />
-                                                <span>スタッフ管理</span>
-                                            </Link>
+                                        <SidebarMenuButton
+                                            onClick={() => window.location.href = `/admin/${activeOrganizationId}/transactions`}
+                                            isActive={location.pathname.includes('/transactions')}
+                                        >
+                                            <History />
+                                            <span>取引履歴</span>
+                                        </SidebarMenuButton>
+                                    </SidebarMenuItem>
+
+                                    <SidebarMenuItem>
+                                        <SidebarMenuButton
+                                            onClick={() => window.location.href = `/admin/${activeOrganizationId}/staff`}
+                                            isActive={location.pathname.includes('/staff')}
+                                        >
+                                            <Users />
+                                            <span>スタッフ管理</span>
                                         </SidebarMenuButton>
                                     </SidebarMenuItem>
 
@@ -224,13 +238,11 @@ export function AppSidebar() {
                             <SidebarMenu>
                                 <SidebarMenuItem>
                                     <SidebarMenuButton
-                                        asChild
+                                        onClick={() => window.location.href = '/settings'}
                                         isActive={location.pathname === '/settings'}
                                     >
-                                        <Link to="/settings">
-                                            <Settings />
-                                            <span>設定</span>
-                                        </Link>
+                                        <Settings />
+                                        <span>設定</span>
                                     </SidebarMenuButton>
                                 </SidebarMenuItem>
                             </SidebarMenu>
