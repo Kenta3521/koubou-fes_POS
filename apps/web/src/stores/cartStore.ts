@@ -25,7 +25,7 @@ interface CartState {
     removeItem: (productId: string) => void;
     updateQuantity: (productId: string, quantity: number, stock?: number) => void;
     clearCart: () => void;
-    setOrganization: (organizationId: string) => void; // 組織切り替え時にカートをクリア
+    setOrganization: (organizationId: string | null) => void; // 組織切り替え時にカートをクリア
 
     // Getters (computed values)
     getTotal: () => number;
@@ -109,7 +109,13 @@ export const useCartStore = create<CartState>((set, get) => ({
     clearCart: () => set({ items: [] }),
 
     // 組織を設定（組織が変わった場合はカートをクリア）
-    setOrganization: (organizationId: string) => set((state) => {
+    setOrganization: (organizationId: string | null) => set((state) => {
+        if (!organizationId) {
+            return {
+                currentOrganizationId: null,
+                items: []
+            };
+        }
         if (state.currentOrganizationId && state.currentOrganizationId !== organizationId) {
             // 組織が変更された場合、カートをクリア
             console.log(`Organization changed from ${state.currentOrganizationId} to ${organizationId}. Clearing cart.`);

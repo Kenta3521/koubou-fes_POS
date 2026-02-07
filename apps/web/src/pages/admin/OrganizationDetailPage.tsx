@@ -14,18 +14,12 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import { ArrowLeft, RefreshCw, Save, Trash2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useToast } from '@/components/ui/use-toast';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { Role } from '@koubou-fes-pos/shared';
+import { Badge } from '@/components/ui/badge';
 
 interface Organization {
     id: string;
@@ -39,17 +33,13 @@ interface Member {
     userId: string;
     name: string;
     email: string;
-    role: Role;
-    joinedAt: string; // or Date string from API? usually createdAt of UserOrganization
+    role: Role; // Legacy enum
+    roleId: string | null;
+    serviceRoleName: string | null;
+    isSystemRole: boolean;
+    joinedAt: string;
 }
 
-// Role translation map
-const roleMap: Record<string, string> = {
-    ADMIN: '管理者',
-    STAFF: 'スタッフ',
-    TMP: '一時的',
-    // PENDING: '承認待ち', // Usually not selectable for change?
-};
 
 export default function OrganizationDetailPage() {
     const { orgId } = useParams<{ orgId: string }>();
@@ -101,21 +91,21 @@ export default function OrganizationDetailPage() {
     const fetchMembers = async () => {
         try {
             const response = await api.get(`/organizations/${orgId}/members`);
-            // API returns UserOrganization structure, need to map if necessary
-            // Assuming endpoint returns flat list or need mapping
-            // memberController.ts returns existing UserOrganization array
-            // Assuming response.data.data is correct structure
             setMembers(response.data.data.map((m: any) => ({
                 userId: m.userId,
                 name: m.user.name,
                 email: m.user.email,
                 role: m.role,
-                joinedAt: m.user.createdAt // or assignedAt if exists
+                roleId: m.roleId,
+                serviceRoleName: m.serviceRole?.name || null,
+                isSystemRole: m.serviceRole?.isSystemRole || false,
+                joinedAt: m.user.createdAt
             })));
         } catch (error) {
             console.error('Failed to fetch members:', error);
         }
     };
+
 
     const handleSaveBasic = async () => {
         if (!orgId) return;
@@ -180,18 +170,6 @@ export default function OrganizationDetailPage() {
             toast({ title: 'エラー', description: '再生成に失敗しました。', variant: 'destructive' });
         } finally {
             setIsSavingInvite(false);
-        }
-    };
-
-    const handleRoleChange = async (userId: string, newRole: string) => {
-        if (!orgId) return;
-        try {
-            await api.patch(`/organizations/${orgId}/members/${userId}`, { role: newRole });
-            setMembers(prev => prev.map(m => m.userId === userId ? { ...m, role: newRole as Role } : m));
-            toast({ title: '更新完了', description: '役割を変更しました。' });
-        } catch (error) {
-            console.error(error);
-            toast({ title: 'エラー', description: '役割の変更に失敗しました。', variant: 'destructive' });
         }
     };
 
@@ -324,7 +302,6 @@ export default function OrganizationDetailPage() {
                                         <TableHead>名前</TableHead>
                                         <TableHead>Email</TableHead>
                                         <TableHead>権限</TableHead>
-                                        {/* <TableHead>参加日</TableHead> */}
                                         <TableHead className="text-right">操作</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -334,21 +311,15 @@ export default function OrganizationDetailPage() {
                                             <TableCell className="font-medium">{member.name}</TableCell>
                                             <TableCell>{member.email}</TableCell>
                                             <TableCell>
-                                                <Select
-                                                    value={member.role}
-                                                    onValueChange={(val) => handleRoleChange(member.userId, val as string)}
-                                                >
-                                                    <SelectTrigger className="w-[140px]">
-                                                        <SelectValue />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {Object.entries(roleMap).map(([key, label]) => (
-                                                            <SelectItem key={key} value={key}>{label}</SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
+                                                {member.role === Role.TMP ? (
+                                                    <Badge variant="outline" className="text-muted-foreground">承諾待ち</Badge>
+                                                ) : (
+                                                    <div className="flex items-center gap-2">
+                                                        {member.serviceRoleName || member.role}
+                                                        {member.isSystemRole && <Badge variant="secondary" className="text-[10px] h-4 px-1">共通</Badge>}
+                                                    </div>
+                                                )}
                                             </TableCell>
-                                            {/* <TableCell>{new Date(member.joinedAt).toLocaleDateString()}</TableCell> */}
                                             <TableCell className="text-right">
                                                 <Button
                                                     variant="ghost"
@@ -363,7 +334,7 @@ export default function OrganizationDetailPage() {
                                     ))}
                                     {members.length === 0 && (
                                         <TableRow>
-                                            <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
+                                            <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
                                                 メンバーがいません。
                                             </TableCell>
                                         </TableRow>

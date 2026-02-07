@@ -8,7 +8,6 @@ import { Label } from '@/components/ui/label';
 import { Store, LogOut } from 'lucide-react';
 import { api } from '@/lib/api';
 import { AxiosError } from 'axios';
-import { Role } from '@koubou-fes-pos/shared';
 import { Badge } from '@/components/ui/badge';
 
 export default function SelectOrganizationPage() {
@@ -92,7 +91,17 @@ export default function SelectOrganizationPage() {
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <JoinForm />
-
+                        {user.isSystemAdmin && (
+                            <div className="pt-2">
+                                <Button
+                                    variant="secondary"
+                                    className="w-full font-semibold"
+                                    onClick={() => navigate('/admin/organizations')}
+                                >
+                                    システム管理画面へ直接移動
+                                </Button>
+                            </div>
+                        )}
                         <div className="pt-2">
                             <Button variant="outline" className="w-full" onClick={handleLogout}>
                                 <LogOut className="mr-2 h-4 w-4" />
@@ -119,12 +128,12 @@ export default function SelectOrganizationPage() {
                     {user.organizations.map((userOrg) => (
                         <Card
                             key={userOrg.id}
-                            className={`transition-colors ${userOrg.role === Role.TMP
-                                    ? 'opacity-60 cursor-not-allowed bg-muted'
-                                    : 'cursor-pointer hover:bg-muted/50'
+                            className={`transition-colors ${userOrg.role === 'TMP' || userOrg.role === 'PENDING'
+                                ? 'opacity-60 cursor-not-allowed bg-muted'
+                                : 'cursor-pointer hover:bg-muted/50'
                                 }`}
                             onClick={() => {
-                                if (userOrg.role !== Role.TMP) {
+                                if (userOrg.role !== 'TMP' && userOrg.role !== 'PENDING') {
                                     handleSelect(userOrg.id);
                                 }
                             }}
@@ -136,12 +145,12 @@ export default function SelectOrganizationPage() {
                                 <div className="flex-1">
                                     <div className="flex items-center justify-between">
                                         <h3 className="font-semibold text-sm sm:text-base">{userOrg.name}</h3>
-                                        {userOrg.role === Role.TMP && (
+                                        {(userOrg.role === 'TMP' || userOrg.role === 'PENDING') && (
                                             <Badge variant="secondary" className="text-xs">承認待ち</Badge>
                                         )}
                                     </div>
                                     <p className="text-xs sm:text-sm text-muted-foreground capitalize">
-                                        {userOrg.role.toLowerCase()}
+                                        {userOrg.role?.toLowerCase() || 'no role'}
                                     </p>
                                 </div>
                             </CardContent>
@@ -156,7 +165,16 @@ export default function SelectOrganizationPage() {
                     </Card>
                 </div>
 
-                <div className="text-center">
+                <div className="text-center space-y-2">
+                    {user.isSystemAdmin && (
+                        <Button
+                            variant="secondary"
+                            onClick={() => navigate('/admin/organizations')}
+                            className="w-full font-semibold"
+                        >
+                            システム管理画面へ直接移動
+                        </Button>
+                    )}
                     <Button variant="link" onClick={handleLogout} className="text-muted-foreground">
                         ログアウトして戻る
                     </Button>

@@ -88,6 +88,19 @@ export async function authenticate(
                                 name: true,
                             },
                         },
+                        roles: {
+                            include: {
+                                role: {
+                                    include: {
+                                        permissions: {
+                                            include: {
+                                                permission: true
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     },
                 },
             },
@@ -112,11 +125,32 @@ export async function authenticate(
             status: user.status as UserStatus,
             isSystemAdmin: user.isSystemAdmin,
             createdAt: user.createdAt,
-            organizations: user.organizations.map((uo) => ({
-                id: uo.organization.id,
-                name: uo.organization.name,
-                role: uo.role as Role,
-            })),
+            organizations: user.organizations.map((uo) => {
+                // 複数ロールの権限をマージ
+                const allRolePermissions = new Set<string>();
+                uo.roles.forEach(ur => {
+                    ur.role.permissions.forEach(rp => {
+                        allRolePermissions.add(rp.permission.code);
+                    });
+                });
+
+                const overridePermissions = uo.permissions as string[] | null;
+
+                // Overridesがある場合はそれを優先、ない場合は全ロールの権限合計
+                const finalPermissions = overridePermissions !== null
+                    ? overridePermissions
+                    : Array.from(allRolePermissions);
+
+                // 既存UI互換性のためロール名はカンマ区切りで結合
+                const roleNames = uo.roles.map(ur => ur.role.name).join(', ') || 'Staff';
+
+                return {
+                    id: uo.organization.id,
+                    name: uo.organization.name,
+                    role: roleNames as Role,
+                    permissions: finalPermissions,
+                };
+            }),
         };
 
         next();

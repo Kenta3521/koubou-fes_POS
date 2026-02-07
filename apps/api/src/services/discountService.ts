@@ -44,10 +44,9 @@ export const update = async (id: string, data: any) => {
 };
 
 export const remove = async (id: string) => {
-    // 論理削除
-    return prisma.discount.update({
-        where: { id },
-        data: { isActive: false }
+    // 物理削除
+    return prisma.discount.delete({
+        where: { id }
     });
 };
 

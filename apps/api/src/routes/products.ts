@@ -4,26 +4,26 @@
  */
 
 import { Router } from 'express';
-import { authenticate, requireOrgRole } from '../middlewares/auth.js';
-import { Role } from '@koubou-fes-pos/shared';
+import { authenticate } from '../middlewares/auth.js';
+import { checkPermission } from '../middlewares/permission.js';
 import { listProducts, getProduct, createProduct, updateProduct, deleteProduct } from '../controllers/productController.js';
 
 const router: Router = Router({ mergeParams: true }); // mergeParams: 親ルートのパラメータを継承
 
 // GET /api/v1/organizations/:orgId/products
-router.get('/', authenticate, requireOrgRole([Role.ADMIN, Role.STAFF]), listProducts);
+router.get('/', authenticate, checkPermission('read', 'product'), listProducts);
 
 // POST /api/v1/organizations/:orgId/products
-router.post('/', authenticate, requireOrgRole([Role.ADMIN]), createProduct);
+router.post('/', authenticate, checkPermission('create', 'product'), createProduct);
 
 // GET /api/v1/organizations/:orgId/products/:productId
-router.get('/:productId', authenticate, requireOrgRole([Role.ADMIN, Role.STAFF]), getProduct);
+router.get('/:productId', authenticate, checkPermission('read', 'product'), getProduct);
 
 // PATCH /api/v1/organizations/:orgId/products/:productId
-router.patch('/:productId', authenticate, requireOrgRole([Role.ADMIN]), updateProduct);
+router.patch('/:productId', authenticate, checkPermission('update', 'product'), updateProduct);
 
 // DELETE /api/v1/organizations/:orgId/products/:productId
-router.delete('/:productId', authenticate, requireOrgRole([Role.ADMIN]), deleteProduct);
+router.delete('/:productId', authenticate, checkPermission('delete', 'product'), deleteProduct);
 
 
 export default router;

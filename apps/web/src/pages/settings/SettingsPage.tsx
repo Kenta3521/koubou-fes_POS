@@ -352,7 +352,7 @@ export default function SettingsPage() {
                                     <div className="flex flex-col">
                                         <span className="font-medium">{org.name}</span>
                                         <span className="text-xs text-muted-foreground">
-                                            {org.role === 'ADMIN' ? '管理者' : 'スタッフ'}
+                                            {org.role}
                                         </span>
                                     </div>
                                     <Button

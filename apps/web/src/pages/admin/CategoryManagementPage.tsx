@@ -1,8 +1,9 @@
 
 import { useState, useEffect, useCallback } from 'react';
+import { useParams } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { api } from '../../lib/api';
-import { Category, Role } from '@koubou-fes-pos/shared';
+import { Category } from '@koubou-fes-pos/shared';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import {
@@ -13,33 +14,22 @@ import {
     TableHeader,
     TableRow,
 } from '../../components/ui/table';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '../../components/ui/dropdown-menu';
-import { Loader2, Plus, MoreHorizontal, ArrowUp, ArrowDown, Pencil, Trash2 } from 'lucide-react';
+import { Loader2, Plus, ArrowUp, ArrowDown, Pencil, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { CategoryEditModal } from '../../components/admin/CategoryEditModal';
-
-
-import { useParams } from 'react-router-dom';
+import { usePermission } from '@/hooks/usePermission';
 
 export default function CategoryManagementPage() {
     const { orgId } = useParams<{ orgId: string }>();
     const { user, activeOrganizationId: storeOrgId } = useAuthStore();
     const activeOrganizationId = orgId || storeOrgId;
     const { toast } = useToast();
+    const { can } = usePermission();
 
     const [categories, setCategories] = useState<Category[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
-
-    // Initial permission check
-    const currentOrgRole = user?.organizations.find(o => o.id === activeOrganizationId)?.role;
-    const isAdmin = currentOrgRole === Role.ADMIN || user?.isSystemAdmin;
 
     const fetchCategories = useCallback(async () => {
         if (!activeOrganizationId) return;
@@ -134,14 +124,6 @@ export default function CategoryManagementPage() {
         }
     };
 
-    if (!isAdmin) {
-        return (
-            <div className="p-8 text-center text-red-500">
-                管理者権限が必要です。
-            </div>
-        );
-    }
-
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
@@ -151,9 +133,11 @@ export default function CategoryManagementPage() {
                         商品カテゴリの登録、編集、並び替えを行います。
                     </p>
                 </div>
-                <Button onClick={handleCreate}>
-                    <Plus className="mr-2 h-4 w-4" /> 新規カテゴリ
-                </Button>
+                {can('create', 'category') && (
+                    <Button onClick={handleCreate}>
+                        <Plus className="mr-2 h-4 w-4" /> 新規カテゴリ
+                    </Button>
+                )}
             </div>
 
             <Card>
@@ -171,9 +155,11 @@ export default function CategoryManagementPage() {
                     ) : categories.length === 0 ? (
                         <div className="text-center py-12 text-slate-500 border-2 border-dashed rounded-lg">
                             <p>カテゴリがまだ登録されていません</p>
-                            <Button variant="link" onClick={handleCreate}>
-                                最初のカテゴリを作成する
-                            </Button>
+                            {can('create', 'category') && (
+                                <Button variant="link" onClick={handleCreate}>
+                                    最初のカテゴリを作成する
+                                </Button>
+                            )}
                         </div>
                     ) : (
                         <div className="rounded-md border">
@@ -190,51 +176,47 @@ export default function CategoryManagementPage() {
                                     {categories.map((category, index) => (
                                         <TableRow key={category.id}>
                                             <TableCell>
-                                                <div className="flex space-x-1">
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-8 w-8"
-                                                        disabled={index === 0}
-                                                        onClick={() => handleMove(index, 'up')}
-                                                    >
-                                                        <ArrowUp className="h-4 w-4" />
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-8 w-8"
-                                                        disabled={index === categories.length - 1}
-                                                        onClick={() => handleMove(index, 'down')}
-                                                    >
-                                                        <ArrowDown className="h-4 w-4" />
-                                                    </Button>
-                                                </div>
+                                                {can('update', 'category') && (
+                                                    <div className="flex space-x-1">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-8 w-8"
+                                                            disabled={index === 0}
+                                                            onClick={() => handleMove(index, 'up')}
+                                                        >
+                                                            <ArrowUp className="h-4 w-4" />
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-8 w-8"
+                                                            disabled={index === categories.length - 1}
+                                                            onClick={() => handleMove(index, 'down')}
+                                                        >
+                                                            <ArrowDown className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                )}
                                             </TableCell>
                                             <TableCell className="font-medium">{category.name}</TableCell>
                                             <TableCell>{category._count?.products || 0}</TableCell>
-                                            <TableCell className="text-right">
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button variant="ghost" className="h-8 w-8 p-0">
-                                                            <span className="sr-only">Open menu</span>
-                                                            <MoreHorizontal className="h-4 w-4" />
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem onClick={() => handleEdit(category)}>
-                                                            <Pencil className="mr-2 h-4 w-4" />
-                                                            編集
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem
-                                                            className="text-red-600 focus:text-red-600"
-                                                            onClick={() => handleDelete(category)}
-                                                        >
-                                                            <Trash2 className="mr-2 h-4 w-4" />
-                                                            削除
-                                                        </DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
+                                            <TableCell className="text-right space-x-2">
+                                                {can('update', 'category') && (
+                                                    <Button variant="ghost" size="icon" onClick={() => handleEdit(category)}>
+                                                        <Pencil className="h-4 w-4" />
+                                                    </Button>
+                                                )}
+                                                {can('delete', 'category') && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="text-destructive hover:text-destructive"
+                                                        onClick={() => handleDelete(category)}
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                )}
                                             </TableCell>
                                         </TableRow>
                                     ))}

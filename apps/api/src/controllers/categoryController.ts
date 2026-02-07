@@ -87,21 +87,16 @@ export async function createCategory(req: Request, res: Response): Promise<void>
             return;
         }
 
-        // 2. 権限チェック (ORG_ADMIN required)
+        // 2. 権限チェック (Middlewareでチェック済みのため、ここではOrg所属チェックのみ)
         const userOrgs = req.user?.organizations || [];
         const userOrg = userOrgs.find((org) => org.id === orgId);
-        const hasAdminAccess = (userOrg?.role === 'ADMIN') || req.user?.isSystemAdmin;
 
-        if (!hasAdminAccess) {
-            res.status(403).json({
-                success: false,
-                error: {
-                    code: 'AUTH_FORBIDDEN',
-                    message: 'カテゴリ作成には管理者権限が必要です',
-                },
-            });
-            return;
-        }
+        // System Adminは所属していなくてもアクセス可能(permission middlewareで担保されているが念のため)
+        // ただし、permission middlewareが通っていればOKとするなら、ここの所属チェックも不要かもしれないが
+        // 念のため所属しているか、システム管理者であるかは確認してもよい。
+        // RBAC的には permission middleware ('create', 'category') が通っていればOK。
+        // ここでは冗長なADMINロールチェックを削除する。
+
 
         // 3. カテゴリ作成
         const newCategory = await createCategoryService(orgId, name, sortOrder);
@@ -156,21 +151,8 @@ export async function updateCategory(req: Request, res: Response): Promise<void>
             return;
         }
 
-        // 2. 権限チェック (ORG_ADMIN required)
-        const userOrgs = req.user?.organizations || [];
-        const userOrg = userOrgs.find((org) => org.id === orgId);
-        const hasAdminAccess = (userOrg?.role === 'ADMIN') || req.user?.isSystemAdmin;
+        // 2. 権限チェック (Middlewareでチェック済み)
 
-        if (!hasAdminAccess) {
-            res.status(403).json({
-                success: false,
-                error: {
-                    code: 'AUTH_FORBIDDEN',
-                    message: 'カテゴリ更新には管理者権限が必要です',
-                },
-            });
-            return;
-        }
 
         // 3. カテゴリ更新
         const updatedCategory = await updateCategoryService(orgId, categoryId, { name, sortOrder });
@@ -223,21 +205,8 @@ export async function deleteCategory(req: Request, res: Response): Promise<void>
             return;
         }
 
-        // 2. 権限チェック (ORG_ADMIN required)
-        const userOrgs = req.user?.organizations || [];
-        const userOrg = userOrgs.find((org) => org.id === orgId);
-        const hasAdminAccess = (userOrg?.role === 'ADMIN') || req.user?.isSystemAdmin;
+        // 2. 権限チェック (Middlewareでチェック済み)
 
-        if (!hasAdminAccess) {
-            res.status(403).json({
-                success: false,
-                error: {
-                    code: 'AUTH_FORBIDDEN',
-                    message: 'カテゴリ削除には管理者権限が必要です',
-                },
-            });
-            return;
-        }
 
         // 3. カテゴリ削除
         await deleteCategoryService(orgId, categoryId);
@@ -300,21 +269,8 @@ export async function reorderCategories(req: Request, res: Response): Promise<vo
             return;
         }
 
-        // 権限チェック (Admin or SystemAdmin)
-        const userOrgs = req.user?.organizations || [];
-        const userOrg = userOrgs.find((org) => org.id === orgId);
-        const hasAdminAccess = (userOrg?.role === 'ADMIN') || req.user?.isSystemAdmin;
+        // 権限チェック (Middlewareでチェック済み)
 
-        if (!hasAdminAccess) {
-            res.status(403).json({
-                success: false,
-                error: {
-                    code: 'AUTH_FORBIDDEN',
-                    message: 'カテゴリの並び替えには管理者権限が必要です',
-                },
-            });
-            return;
-        }
 
         await reorderCategoriesService(orgId, categoryIds);
 

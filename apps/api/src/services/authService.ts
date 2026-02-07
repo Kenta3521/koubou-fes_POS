@@ -16,6 +16,15 @@ import { generateToken, generateResetToken, verifyResetToken } from '../utils/jw
  * @returns ログインレスポンス（トークン + ユーザー情報）
  * @throws 認証失敗時
  */
+// ... (imports remain)
+
+/**
+ * ユーザーログイン処理
+ * @param email メールアドレス
+ * @param password パスワード（平文）
+ * @returns ログインレスポンス（トークン + ユーザー情報）
+ * @throws 認証失敗時
+ */
 export async function loginUser(
     email: string,
     password: string
@@ -30,6 +39,11 @@ export async function loginUser(
                         select: {
                             id: true,
                             name: true,
+                        },
+                    },
+                    roles: {
+                        include: {
+                            role: true,
                         },
                     },
                 },
@@ -79,11 +93,15 @@ export async function loginUser(
             status: user.status as UserStatus,
             isSystemAdmin: user.isSystemAdmin,
             createdAt: user.createdAt,
-            organizations: user.organizations.map((uo) => ({
-                id: uo.organization.id,
-                name: uo.organization.name,
-                role: uo.role as Role,
-            })),
+            organizations: user.organizations.map((uo) => {
+                const roleNames = uo.roles.map(ur => ur.role.name).join(', ') || 'Staff';
+                return {
+                    id: uo.organization.id,
+                    name: uo.organization.name,
+                    role: roleNames as Role,
+                    permissions: [],
+                };
+            }),
         },
     };
 
@@ -130,6 +148,15 @@ export async function registerUser(
     // 3. パスワードのハッシュ化
     const passwordHash = await bcrypt.hash(password, 10);
 
+    // Find default role (assuming global 'Staff' role exists)
+    // We try to find a global role named 'スタッフ', 'Staff', or 'STAFF'
+    const defaultRole = await prisma.serviceRole.findFirst({
+        where: {
+            organizationId: null,
+            name: { in: ['スタッフ', 'Staff', 'STAFF'] }
+        }
+    });
+
     // 4. Prismaトランザクションでユーザー作成 + 団体メンバーシップ作成
     const user = await prisma.$transaction(async (tx) => {
         // ユーザー作成
@@ -143,14 +170,24 @@ export async function registerUser(
             },
         });
 
-        // 団体メンバーシップ作成（デフォルト: STAFF）
+        // 団体メンバーシップ作成
         await tx.userOrganization.create({
             data: {
                 userId: newUser.id,
                 organizationId: organization.id,
-                role: Role.STAFF,
             },
         });
+
+        // ロール割り当て（デフォルト: STAFF）
+        if (defaultRole) {
+            await tx.userOrganizationRole.create({
+                data: {
+                    userId: newUser.id,
+                    organizationId: organization.id,
+                    roleId: defaultRole.id,
+                }
+            });
+        }
 
         // ユーザー情報を所属団体情報と共に取得
         return await tx.user.findUnique({
@@ -162,6 +199,11 @@ export async function registerUser(
                             select: {
                                 id: true,
                                 name: true,
+                            },
+                        },
+                        roles: {
+                            include: {
+                                role: true,
                             },
                         },
                     },
@@ -191,11 +233,15 @@ export async function registerUser(
             status: user.status as UserStatus,
             isSystemAdmin: user.isSystemAdmin,
             createdAt: user.createdAt,
-            organizations: user.organizations.map((uo) => ({
-                id: uo.organization.id,
-                name: uo.organization.name,
-                role: uo.role as Role,
-            })),
+            organizations: user.organizations.map((uo) => {
+                const roleNames = uo.roles.map(ur => ur.role.name).join(', ') || 'Staff';
+                return {
+                    id: uo.organization.id,
+                    name: uo.organization.name,
+                    role: roleNames as Role,
+                    permissions: [],
+                };
+            }),
         },
     };
 

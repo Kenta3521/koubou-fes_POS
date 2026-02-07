@@ -6,6 +6,7 @@ import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
 import ResetPasswordPage from './pages/auth/ResetPasswordPage';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import AuthProvider from './components/auth/AuthProvider';
+import AbilityProvider from './components/auth/AbilityProvider';
 import { MainLayout } from './components/layout/MainLayout';
 import { Toaster } from './components/ui/toaster';
 import { useAuthStore } from './stores/authStore';
@@ -28,6 +29,11 @@ import RequireOrgAdmin from './components/auth/RequireOrgAdmin';
 import RequireSystemAdmin from './components/auth/RequireSystemAdmin';
 import OrganizationManagementPage from './pages/admin/OrganizationManagementPage';
 import OrganizationDetailPage from './pages/admin/OrganizationDetailPage';
+import RoleManagementPage from './pages/admin/RoleManagementPage';
+import RoleEditPage from './pages/admin/RoleEditPage';
+import AccessDeniedPage from './pages/AccessDeniedPage';
+import SystemRoleManagementPage from './pages/system/SystemRoleManagementPage';
+import SystemPermissionManagementPage from './pages/system/SystemPermissionManagementPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -68,59 +74,69 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <Router>
-          <Routes>
-            {/* Public Routes (Guest Only) */}
-            <Route element={<PublicRoute />}>
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/register" element={<RegisterPage />} />
-              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-              <Route path="/reset-password" element={<ResetPasswordPage />} />
-            </Route>
-
-            {/* Organization Selection (Auth required, but no layout yet) */}
-            <Route element={<ProtectedRoute />}>
-              <Route path="/select-org" element={<SelectOrganizationPage />} />
-            </Route>
-
-            {/* Protected Routes (Auth & Layout) */}
-            <Route element={<ProtectedRoute />}>
-              <Route element={<MainLayout />}>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/settings" element={<SettingsPage />} />
-                {/* POS Routes */}
-                <Route path="/pos" element={<OrderEntryPage />} />
-                <Route path="/pos/confirm" element={<OrderConfirmationPage />} />
-                <Route path="/pos/payment/cash" element={<CashPaymentPage />} />
-                <Route path="/pos/payment/paypay" element={<PayPayPaymentPage />} />
-                <Route path="/pos/complete" element={<CompletionPage />} />
-                {/* Admin Routes */}
-                <Route element={<RequireOrgAdmin />}>
-                  <Route path="/admin/:orgId/categories" element={<CategoryManagementPage />} />
-                  <Route path="/admin/:orgId/products" element={<ProductManagementPage />} />
-                  <Route path="/admin/:orgId/discounts" element={<DiscountManagementPage />} />
-                  <Route path="/admin/:orgId/staff" element={<StaffManagementPage />} />
-                  <Route path="/admin/:orgId/transactions" element={<TransactionHistoryPage />} />
-                  <Route path="/admin/:orgId/dashboard" element={<DashboardPage />} />
-                </Route>
-
+        <AbilityProvider>
+          <Router>
+            <Routes>
+              {/* Public Routes (Guest Only) */}
+              <Route element={<PublicRoute />}>
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/register" element={<RegisterPage />} />
+                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                <Route path="/reset-password" element={<ResetPasswordPage />} />
               </Route>
 
-              {/* System Admin Routes */}
-              <Route element={<RequireSystemAdmin />}>
+              {/* Organization Selection (Auth required, but no layout yet) */}
+              <Route element={<ProtectedRoute />}>
+                <Route path="/select-org" element={<SelectOrganizationPage />} />
+              </Route>
+
+              {/* Protected Routes (Auth & Layout) */}
+              <Route element={<ProtectedRoute />}>
                 <Route element={<MainLayout />}>
-                  <Route path="/admin/organizations" element={<OrganizationManagementPage />} />
-                  <Route path="/admin/organizations/:orgId" element={<OrganizationDetailPage />} />
+                  <Route path="/" element={<HomePage />} />
+                  <Route path="/settings" element={<SettingsPage />} />
+                  {/* POS Routes */}
+                  <Route path="/pos" element={<OrderEntryPage />} />
+                  <Route path="/pos/confirm" element={<OrderConfirmationPage />} />
+                  <Route path="/pos/payment/cash" element={<CashPaymentPage />} />
+                  <Route path="/pos/payment/paypay" element={<PayPayPaymentPage />} />
+                  <Route path="/pos/complete" element={<CompletionPage />} />
+                  {/* Admin Routes */}
+                  <Route element={<RequireOrgAdmin />}>
+                    <Route path="/admin/:orgId/categories" element={<CategoryManagementPage />} />
+                    <Route path="/admin/:orgId/products" element={<ProductManagementPage />} />
+                    <Route path="/admin/:orgId/discounts" element={<DiscountManagementPage />} />
+                    <Route path="/admin/:orgId/staff" element={<StaffManagementPage />} />
+                    <Route path="/admin/:orgId/transactions" element={<TransactionHistoryPage />} />
+                    <Route path="/admin/:orgId/dashboard" element={<DashboardPage />} />
+                    <Route path="/admin/:orgId/roles" element={<RoleManagementPage />} />
+                    <Route path="/admin/:orgId/roles/:roleId" element={<RoleEditPage />} />
+                  </Route>
+
                 </Route>
+
+                {/* System Admin Routes */}
+                <Route element={<RequireSystemAdmin />}>
+                  <Route element={<MainLayout />}>
+                    <Route path="/admin/organizations" element={<OrganizationManagementPage />} />
+                    <Route path="/admin/organizations/:orgId" element={<OrganizationDetailPage />} />
+
+                    {/* System Role Management */}
+                    <Route path="/system/roles" element={<SystemRoleManagementPage />} />
+                    <Route path="/system/roles/new" element={<RoleEditPage />} />
+                    <Route path="/system/roles/:roleId" element={<RoleEditPage />} />
+                    <Route path="/system/permissions" element={<SystemPermissionManagementPage />} />
+                  </Route>
+                </Route>
+                <Route path="/access-denied" element={<AccessDeniedPage />} />
               </Route>
 
-            </Route>
-
-            {/* 404 Not Found */}
-            <Route path="*" element={<NotFoundPage />} />
-          </Routes>
-          <Toaster />
-        </Router>
+              {/* 404 Not Found */}
+              <Route path="*" element={<NotFoundPage />} />
+            </Routes>
+            <Toaster />
+          </Router>
+        </AbilityProvider>
       </AuthProvider>
     </QueryClientProvider >
   );

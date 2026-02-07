@@ -33,10 +33,10 @@ export async function getMembers(req: Request, res: Response): Promise<void> {
  */
 export async function updateMember(req: Request, res: Response): Promise<void> {
     const { orgId, userId } = req.params;
-    const { role } = req.body;
+    const { roleId, permissions } = req.body;
 
     try {
-        const member = await memberService.updateMember(orgId, userId, { role });
+        const member = await memberService.updateMember(orgId, userId, { roleId, permissions });
         res.status(200).json({
             success: true,
             data: member,

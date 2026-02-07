@@ -116,18 +116,23 @@ export const completeTransaction = async (
             throw new Error('ORGANIZATION_MISMATCH');
         }
 
-        // 3. ユーザーの組織所属チェック
-        const membership = await tx.userOrganization.findUnique({
-            where: {
-                userId_organizationId: {
-                    userId,
-                    organizationId,
-                },
-            },
-        });
+        // 3. ユーザーの組織所属チェック (SystemAdminはスキップ)
+        const user = await tx.user.findUnique({ where: { id: userId } });
+        const isSystemAdmin = user?.isSystemAdmin || false;
 
-        if (!membership) {
-            throw new Error('USER_NOT_MEMBER');
+        if (!isSystemAdmin) {
+            const membership = await tx.userOrganization.findUnique({
+                where: {
+                    userId_organizationId: {
+                        userId,
+                        organizationId,
+                    },
+                },
+            });
+
+            if (!membership) {
+                throw new Error('USER_NOT_MEMBER');
+            }
         }
 
         // 4. ステータスチェック
@@ -216,18 +221,23 @@ export const cancelTransaction = async (
         throw new Error('ORGANIZATION_MISMATCH');
     }
 
-    // 3. ユーザーの組織所属チェック
-    const membership = await prisma.userOrganization.findUnique({
-        where: {
-            userId_organizationId: {
-                userId,
-                organizationId,
-            },
-        },
-    });
+    // 3. ユーザーの組織所属チェック (SystemAdminはスキップ)
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const isSystemAdmin = user?.isSystemAdmin || false;
 
-    if (!membership) {
-        throw new Error('USER_NOT_MEMBER');
+    if (!isSystemAdmin) {
+        const membership = await prisma.userOrganization.findUnique({
+            where: {
+                userId_organizationId: {
+                    userId,
+                    organizationId,
+                },
+            },
+        });
+
+        if (!membership) {
+            throw new Error('USER_NOT_MEMBER');
+        }
     }
 
     // 4. ステータスチェック

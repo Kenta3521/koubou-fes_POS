@@ -11,8 +11,9 @@ import {
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
-import { Plus, Pencil } from 'lucide-react';
+import { Plus, Pencil, ExternalLink } from 'lucide-react';
 import { api } from '@/lib/api';
+import { useAuthStore } from '@/stores/authStore';
 import { CreateOrganizationModal } from '@/components/admin/CreateOrganizationModal';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { useToast } from '@/components/ui/use-toast';
@@ -27,6 +28,7 @@ interface Organization {
 
 export default function OrganizationManagementPage() {
     const navigate = useNavigate();
+    const { setActiveOrganization } = useAuthStore();
     const [organizations, setOrganizations] = useState<Organization[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -84,6 +86,15 @@ export default function OrganizationManagementPage() {
         }
     };
 
+    const handleManageOrg = (orgId: string) => {
+        setActiveOrganization(orgId);
+        navigate(`/admin/${orgId}/dashboard`);
+        toast({
+            title: '操作団体切り替え',
+            description: '選択した団体の管理モードに切り替えました。',
+        });
+    };
+
     return (
         <div className="container mx-auto py-6 space-y-6">
             <div className="flex justify-between items-center">
@@ -137,9 +148,20 @@ export default function OrganizationManagementPage() {
                                         </TableCell>
                                         <TableCell>{new Date(org.createdAt).toLocaleDateString()}</TableCell>
                                         <TableCell className="text-right">
-                                            <Button variant="ghost" size="icon" onClick={() => navigate(`/admin/organizations/${org.id}`)}>
-                                                <Pencil className="h-4 w-4" />
-                                            </Button>
+                                            <div className="flex justify-end space-x-2">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => handleManageOrg(org.id)}
+                                                    className="h-8 px-2 lg:px-3"
+                                                >
+                                                    <ExternalLink className="mr-2 h-4 w-4" />
+                                                    <span className="hidden lg:inline">管理する</span>
+                                                </Button>
+                                                <Button variant="ghost" size="icon" onClick={() => navigate(`/admin/organizations/${org.id}`)}>
+                                                    <Pencil className="h-4 w-4" />
+                                                </Button>
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ))}

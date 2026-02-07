@@ -1,11 +1,13 @@
 // Enum definitions from DB設計書.md
 
-export enum Role {
-    ADMIN = 'ADMIN',
-    STAFF = 'STAFF',
-    PENDING = 'PENDING',
-    TMP = 'TMP',
-}
+export const Role = {
+    ADMIN: 'ADMIN',
+    STAFF: 'STAFF',
+    PENDING: 'PENDING',
+    TMP: 'TMP',
+} as const;
+
+export type Role = typeof Role[keyof typeof Role];
 
 export enum UserStatus {
     ACTIVE = 'ACTIVE',

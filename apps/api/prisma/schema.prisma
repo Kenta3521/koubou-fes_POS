@@ -32,6 +32,7 @@ model Organization {
   categories   Category[]
   discounts    Discount[]
   products     Product[]
+  roles        ServiceRole[]
   transactions Transaction[]
   members      UserOrganization[]
 }
@@ -39,11 +40,55 @@ model Organization {
 model UserOrganization {
   userId         String
   organizationId String
-  role           Role         @default(STAFF)
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  user           User         @relation(fields: [userId], references: [id])
+  permissions    Json?
+  organization   Organization           @relation(fields: [organizationId], references: [id])
+  user           User                   @relation(fields: [userId], references: [id])
+  roles          UserOrganizationRole[]
 
   @@id([userId, organizationId])
+}
+
+model UserOrganizationRole {
+  userId           String
+  organizationId   String
+  roleId           String
+  createdAt        DateTime         @default(now())
+  role             ServiceRole      @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  userOrganization UserOrganization @relation(fields: [userId, organizationId], references: [userId, organizationId], onDelete: Cascade)
+
+  @@id([userId, organizationId, roleId])
+}
+
+model Permission {
+  id          String           @id @default(uuid())
+  code        String           @unique
+  description String?
+  category    String
+  createdAt   DateTime         @default(now())
+  name        String
+  roles       RolePermission[]
+}
+
+model ServiceRole {
+  id             String                 @id @default(uuid())
+  organizationId String?
+  name           String
+  description    String?
+  isSystemRole   Boolean                @default(false)
+  createdAt      DateTime               @default(now())
+  permissions    RolePermission[]
+  organization   Organization?          @relation(fields: [organizationId], references: [id])
+  userRoles      UserOrganizationRole[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  createdAt    DateTime    @default(now())
+  permission   Permission  @relation(fields: [permissionId], references: [id])
+  role         ServiceRole @relation(fields: [roleId], references: [id])
+
+  @@id([roleId, permissionId])
 }
 
 model Category {
@@ -52,8 +97,8 @@ model Category {
   name           String
   sortOrder      Int          @default(0)
   organization   Organization @relation(fields: [organizationId], references: [id])
-  products       Product[]
   discounts      Discount[]
+  products       Product[]
 }
 
 model Product {
@@ -92,13 +137,13 @@ model Discount {
   conditionValue   Int                   @default(0)
   priority         Int                   @default(0)
   targetProductId  String?
-  targetCategoryId String?
   targetType       DiscountTargetType    @default(ORDER_TOTAL)
   triggerType      DiscountTriggerType   @default(MANUAL)
   validFrom        DateTime?
   validTo          DateTime?
-  category         Category?             @relation(fields: [targetCategoryId], references: [id])
+  targetCategoryId String?
   organization     Organization          @relation(fields: [organizationId], references: [id])
+  category         Category?             @relation(fields: [targetCategoryId], references: [id])
   product          Product?              @relation(fields: [targetProductId], references: [id])
   transactions     Transaction[]
   transactionItems TransactionItem[]
@@ -187,13 +232,6 @@ enum DiscountConditionType {
 enum DiscountTriggerType {
   MANUAL
   AUTO
-}
-
-enum Role {
-  ADMIN
-  STAFF
-  PENDING
-  TMP
 }
 
 enum UserStatus {

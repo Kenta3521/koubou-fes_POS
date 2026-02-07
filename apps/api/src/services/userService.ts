@@ -97,21 +97,41 @@ export async function joinOrganization(
         throw new Error('ORG_ALREADY_JOINED');
     }
 
-    // メンバーシップ作成（デフォルト: STAFF）
-    // NOTE: P1-027 団体参加API
-    const membership = await prisma.userOrganization.create({
-        data: {
-            userId,
-            organizationId: organization.id,
-            role: 'TMP',
-        },
+    // デフォルトロール（スタッフ）を取得
+    const defaultRole = await prisma.serviceRole.findFirst({
+        where: {
+            organizationId: null,
+            name: { in: ['スタッフ', 'Staff', 'STAFF'] }
+        }
     });
 
-    return {
-        id: organization.id,
-        name: organization.name,
-        role: membership.role,
-    };
+    // トランザクションで参加処理
+    return await prisma.$transaction(async (tx) => {
+        // メンバーシップ作成
+        await tx.userOrganization.create({
+            data: {
+                userId,
+                organizationId: organization.id,
+            },
+        });
+
+        // ロール割り当て
+        if (defaultRole) {
+            await tx.userOrganizationRole.create({
+                data: {
+                    userId,
+                    organizationId: organization.id,
+                    roleId: defaultRole.id,
+                }
+            });
+        }
+
+        return {
+            id: organization.id,
+            name: organization.name,
+            role: defaultRole?.name || 'Staff',
+        };
+    });
 }
 
 /**
@@ -132,6 +152,13 @@ export async function leaveOrganization(
                 organizationId,
             },
         },
+        include: {
+            roles: {
+                include: {
+                    role: true
+                }
+            }
+        }
     });
 
     if (!membership) {
@@ -139,20 +166,31 @@ export async function leaveOrganization(
     }
 
     // 最後の管理者チェック
-    if (membership.role === 'ADMIN') {
-        const adminCount = await prisma.userOrganization.count({
+    // 割り当てられているロールの中に「管理者」または「ADMIN」があるかチェック
+    const hasAdminRole = membership.roles.some(ur =>
+        ur.role.name === '管理者' || ur.role.name === 'ADMIN'
+    );
+
+    if (hasAdminRole) {
+        // 組織内の他の管理者の数を確認 (自分以外)
+        const otherAdminCount = await prisma.userOrganizationRole.count({
             where: {
                 organizationId,
-                role: 'ADMIN',
+                role: {
+                    name: { in: ['管理者', 'ADMIN'] }
+                },
+                NOT: {
+                    userId: userId
+                }
             },
         });
 
-        if (adminCount <= 1) {
+        if (otherAdminCount === 0) {
             throw new Error('CANNOT_LEAVE_AS_LAST_ADMIN');
         }
     }
 
-    // 脱退処理（メンバーシップ削除）
+    // 脱退処理（メンバーシップ削除。カスケード設定により割り当ても削除される）
     await prisma.userOrganization.delete({
         where: {
             userId_organizationId: {

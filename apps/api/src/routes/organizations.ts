@@ -5,6 +5,7 @@
 
 import { Router } from 'express';
 import { authenticate, requireSystemAdmin } from '../middlewares/auth.js';
+import { checkPermission } from '../middlewares/permission.js';
 import { listOrganizations, getOrganization, createOrganization, updateOrganization, regenerateInviteCode } from '../controllers/organizationController.js';
 import categoryRoutes from './categories.js';
 import productRoutes from './products.js';
@@ -12,6 +13,7 @@ import discountRoutes from './discounts.js';
 import transactionRoutes from './transactions.js';
 import memberRoutes from './members.js';
 import dashboardRoutes from './dashboard.js';
+import roleRoutes from './roles.js';
 
 const router: Router = Router();
 
@@ -22,13 +24,13 @@ router.get('/', authenticate, listOrganizations);
 router.post('/', authenticate, requireSystemAdmin, createOrganization);
 
 // GET /api/v1/organizations/:orgId
-router.get('/:orgId', authenticate, getOrganization);
+router.get('/:orgId', authenticate, requireSystemAdmin, getOrganization);
 
-// PATCH /api/v1/organizations/:orgId (System Admin Only)
+// PATCH /api/v1/organizations/:orgId
 router.patch('/:orgId', authenticate, requireSystemAdmin, updateOrganization);
 
-// POST /api/v1/organizations/:orgId/regenerate-invite (System Admin Only)
-router.post('/:orgId/regenerate-invite', authenticate, requireSystemAdmin, regenerateInviteCode);
+// POST /api/v1/organizations/:orgId/regenerate-invite
+router.post('/:orgId/regenerate-invite', authenticate, checkPermission('invite', 'member'), regenerateInviteCode);
 
 // Nested Routes
 // GET /api/v1/organizations/:orgId/categories
@@ -48,5 +50,8 @@ router.use('/:orgId/members', memberRoutes);
 
 // Dashboard Routes
 router.use('/:orgId/dashboard', dashboardRoutes);
+
+// Role Routes (Phase C)
+router.use('/:orgId/roles', roleRoutes);
 
 export default router;

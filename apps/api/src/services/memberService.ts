@@ -1,6 +1,7 @@
 
 import prisma from '../utils/prisma.js';
-import { Role } from '@koubou-fes-pos/shared';
+// Role import is removed as we are moving away from it in service logic
+// import { Role } from '@koubou-fes-pos/shared'; 
 
 /**
  * 団体の全メンバー（承認待ち含む）を取得
@@ -17,6 +18,11 @@ export const findAllMembers = async (organizationId: string) => {
                     status: true,
                     createdAt: true
                 }
+            },
+            roles: {
+                include: {
+                    role: true
+                }
             }
         },
         orderBy: {
@@ -28,28 +34,60 @@ export const findAllMembers = async (organizationId: string) => {
 };
 
 /**
- * メンバーの権限（または承認ステータス）を更新
+ * メンバーの権限・役割を更新
  */
-export const updateMember = async (organizationId: string, userId: string, data: { role: Role }) => {
-    return prisma.userOrganization.update({
-        where: {
-            userId_organizationId: {
-                userId,
-                organizationId
-            }
-        },
-        data: {
-            role: data.role as any // Prisma enum type mismatch workaround
-        },
-        include: {
-            user: {
-                select: {
-                    id: true,
-                    name: true,
-                    email: true,
+export const updateMember = async (organizationId: string, userId: string, data: { roleId?: string, permissions?: string[] }) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const updateData: any = {};
+    if (data.permissions !== undefined) {
+        updateData.permissions = data.permissions;
+    }
+
+    return prisma.$transaction(async (tx) => {
+        // Handle Role Update
+        if (data.roleId) {
+            // Remove existing roles for this organization
+            await tx.userOrganizationRole.deleteMany({
+                where: {
+                    userId,
+                    organizationId
+                }
+            });
+
+            // Add new role
+            await tx.userOrganizationRole.create({
+                data: {
+                    userId,
+                    organizationId,
+                    roleId: data.roleId
+                }
+            });
+        }
+
+        // Update Member Details (Permissions, etc)
+        return tx.userOrganization.update({
+            where: {
+                userId_organizationId: {
+                    userId,
+                    organizationId
+                }
+            },
+            data: updateData,
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                    }
+                },
+                roles: {
+                    include: {
+                        role: true
+                    }
                 }
             }
-        }
+        });
     });
 };
 
@@ -57,12 +95,19 @@ export const updateMember = async (organizationId: string, userId: string, data:
  * メンバーを団体から削除
  */
 export const removeMember = async (organizationId: string, userId: string) => {
-    // 最後の管理者は削除できないようにチェック
+    // 所属確認と保持ロールの取得
     const membership = await prisma.userOrganization.findUnique({
         where: {
             userId_organizationId: {
                 userId,
                 organizationId
+            }
+        },
+        include: {
+            roles: {
+                include: {
+                    role: true
+                }
             }
         }
     });
@@ -71,15 +116,26 @@ export const removeMember = async (organizationId: string, userId: string) => {
         throw new Error('MEMBERSHIP_NOT_FOUND');
     }
 
-    if (membership.role === 'ADMIN') {
-        const adminCount = await prisma.userOrganization.count({
+    // 管理者ロールを持っているかチェック
+    const hasAdminRole = membership.roles.some(ur =>
+        ur.role.name === '管理者' || ur.role.name === 'ADMIN'
+    );
+
+    if (hasAdminRole) {
+        // 組織内の他の管理者の数を確認 (自分以外)
+        const otherAdminCount = await prisma.userOrganizationRole.count({
             where: {
                 organizationId,
-                role: 'ADMIN'
-            }
+                role: {
+                    name: { in: ['管理者', 'ADMIN'] }
+                },
+                NOT: {
+                    userId: userId
+                }
+            },
         });
 
-        if (adminCount <= 1) {
+        if (otherAdminCount === 0) {
             throw new Error('CANNOT_REMOVE_LAST_ADMIN');
         }
     }

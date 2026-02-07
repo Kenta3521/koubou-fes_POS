@@ -4,23 +4,23 @@
  */
 
 import { Router } from 'express';
-import { authenticate, requireOrgRole } from '../middlewares/auth.js';
-import { Role } from '@koubou-fes-pos/shared';
+import { authenticate } from '../middlewares/auth.js';
+import { checkPermission } from '../middlewares/permission.js';
 import { getDiscounts, createDiscount, updateDiscount, deleteDiscount } from '../controllers/discountController.js';
 
 const router: Router = Router({ mergeParams: true });
 
 // GET /api/v1/organizations/:orgId/discounts
-router.get('/', authenticate, requireOrgRole([Role.ADMIN, Role.STAFF]), getDiscounts);
+router.get('/', authenticate, checkPermission('read', 'discount'), getDiscounts);
 
 // POST /api/v1/organizations/:orgId/discounts
-router.post('/', authenticate, requireOrgRole([Role.ADMIN]), createDiscount);
+router.post('/', authenticate, checkPermission('create', 'discount'), createDiscount);
 
 // PATCH /api/v1/organizations/:orgId/discounts/:id
-router.patch('/:id', authenticate, requireOrgRole([Role.ADMIN]), updateDiscount);
+router.patch('/:id', authenticate, checkPermission('update', 'discount'), updateDiscount);
 
 // DELETE /api/v1/organizations/:orgId/discounts/:id
-router.delete('/:id', authenticate, requireOrgRole([Role.ADMIN]), deleteDiscount);
+router.delete('/:id', authenticate, checkPermission('delete', 'discount'), deleteDiscount);
 
 
 

@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import {
     Table,
     TableBody,
@@ -11,11 +12,11 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Plus, Pencil, Trash2, Tag } from 'lucide-react';
 import { Discount, Product, Category, DiscountType, DiscountTargetType } from '@koubou-fes-pos/shared';
 import { DiscountEditModal } from '@/features/admin/discount/DiscountEditModal';
+import { usePermission } from '@/hooks/usePermission';
 
 export default function DiscountManagementPage() {
     const { orgId } = useParams<{ orgId: string }>();
@@ -24,6 +25,7 @@ export default function DiscountManagementPage() {
     const [products, setProducts] = useState<Product[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const { can } = usePermission();
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingDiscount, setEditingDiscount] = useState<Discount | undefined>(undefined);
@@ -74,7 +76,7 @@ export default function DiscountManagementPage() {
     };
 
     const handleDelete = async (discount: Discount) => {
-        if (!confirm(`割引「${discount.name}」を削除してもよろしいですか？（論理削除されます）`)) return;
+        if (!confirm(`割引「${discount.name}」を削除してもよろしいですか？（完全に削除されます）`)) return;
 
         try {
             await api.delete(`/organizations/${orgId}/discounts/${discount.id}`);
@@ -88,6 +90,34 @@ export default function DiscountManagementPage() {
             toast({
                 title: '削除エラー',
                 description: '割引の削除に失敗しました',
+                variant: 'destructive',
+            });
+        }
+    };
+
+    const handleToggleActive = async (discount: Discount) => {
+        if (!can('update', 'discount')) return;
+
+        try {
+            const newStatus = !discount.isActive;
+            // Optimistic update
+            setDiscounts(discounts.map(d => d.id === discount.id ? { ...d, isActive: newStatus } : d));
+
+            await api.patch(`/organizations/${orgId}/discounts/${discount.id}`, {
+                isActive: newStatus
+            });
+
+            toast({
+                title: newStatus ? '有効化' : '無効化',
+                description: `割引「${discount.name}」を${newStatus ? '有効' : '無効'}にしました`,
+            });
+        } catch (error) {
+            console.error('Error toggling status:', error);
+            // Revert on error
+            setDiscounts(discounts.map(d => d.id === discount.id ? { ...d, isActive: !discount.isActive } : d));
+            toast({
+                title: '更新エラー',
+                description: 'ステータスの変更に失敗しました',
                 variant: 'destructive',
             });
         }
@@ -150,9 +180,11 @@ export default function DiscountManagementPage() {
                     <Tag className="h-6 w-6" />
                     <h1 className="text-3xl font-bold tracking-tight">割引管理</h1>
                 </div>
-                <Button onClick={handleCreate}>
-                    <Plus className="mr-2 h-4 w-4" /> 新規作成
-                </Button>
+                {can('create', 'discount') && (
+                    <Button onClick={handleCreate}>
+                        <Plus className="mr-2 h-4 w-4" /> 新規作成
+                    </Button>
+                )}
             </div>
 
             <div className="rounded-md border">
@@ -182,19 +214,23 @@ export default function DiscountManagementPage() {
                                     <TableCell>{formatTarget(discount)}</TableCell>
                                     <TableCell className="text-right">{discount.priority}</TableCell>
                                     <TableCell className="text-center">
-                                        {discount.isActive ? (
-                                            <Badge variant="default">有効</Badge>
-                                        ) : (
-                                            <Badge variant="secondary">無効</Badge>
-                                        )}
+                                        <Switch
+                                            checked={discount.isActive}
+                                            onCheckedChange={() => handleToggleActive(discount)}
+                                            disabled={!can('update', 'discount')}
+                                        />
                                     </TableCell>
                                     <TableCell className="text-right space-x-2">
-                                        <Button variant="ghost" size="icon" onClick={() => handleEdit(discount)}>
-                                            <Pencil className="h-4 w-4" />
-                                        </Button>
-                                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(discount)}>
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
+                                        {can('update', 'discount') && (
+                                            <Button variant="ghost" size="icon" onClick={() => handleEdit(discount)}>
+                                                <Pencil className="h-4 w-4" />
+                                            </Button>
+                                        )}
+                                        {can('delete', 'discount') && (
+                                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(discount)}>
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        )}
                                     </TableCell>
                                 </TableRow>
                             ))

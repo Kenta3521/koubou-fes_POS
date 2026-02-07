@@ -1,12 +1,14 @@
 import { Router } from 'express';
-import { authenticate, requireOrgRole } from '../middlewares/auth.js';
+import { authenticate } from '../middlewares/auth.js';
 import * as dashboardController from '../controllers/dashboardController.js';
-import { Role } from '@koubou-fes-pos/shared';
+
+import { checkPermission } from '../middlewares/permission.js';
 
 const router: Router = Router({ mergeParams: true });
 
-// 全てのエンドポイントに認証と管理者権限が必要
-router.use(authenticate, requireOrgRole([Role.ADMIN]));
+// 全てのエンドポイントに認証が必要
+// Phase B: RBAC checkPermissionを利用
+router.use(authenticate, checkPermission('view', 'dashboard'));
 
 // GET /api/v1/organizations/:orgId/dashboard/summary
 router.get('/summary', dashboardController.getSummary);

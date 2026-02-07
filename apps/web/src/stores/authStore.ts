@@ -10,7 +10,7 @@ interface AuthState {
 
     // Actions
     setAuth: (token: string, user: UserWithOrganizations) => void;
-    setActiveOrganization: (orgId: string) => void;
+    setActiveOrganization: (orgId: string | null) => void;
     logout: () => void;
     addOrganization: (org: UserWithOrganizations['organizations'][0]) => void;
 }
@@ -34,7 +34,6 @@ export const useAuthStore = create<AuthState>()(
             }),
 
             setActiveOrganization: (orgId) => {
-                console.log('[AuthStore] Setting active organization:', orgId);
                 set({ activeOrganizationId: orgId });
             },
 

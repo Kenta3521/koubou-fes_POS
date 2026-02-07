@@ -11,10 +11,15 @@ import {
     Users,
     ChevronsUpDown,
     Check,
-    History
+    History,
+    Shield,
+    Lock,
+    LogOut as ExitIcon
 } from 'lucide-react';
+import PermissionGuard from '@/components/auth/PermissionGuard';
 import { useAuthStore } from '@/stores/authStore';
 import { useCartStore } from '@/stores/cartStore';
+import { api } from '@/lib/api';
 import {
     Sidebar,
     SidebarContent,
@@ -49,14 +54,36 @@ export function AppSidebar() {
 
     const [orgSwitchDialogOpen, setOrgSwitchDialogOpen] = React.useState(false);
     const [targetOrgId, setTargetOrgId] = React.useState<string | null>(null);
+    const [impersonatedOrgName, setImpersonatedOrgName] = React.useState<string | null>(null);
 
     // アクティブな組織を取得
-    const currentOrg = user?.organizations?.find(
-        (o) => o.id === activeOrganizationId
-    );
+    const currentOrg = user?.organizations?.find((o: { id: string }) => o.id === activeOrganizationId);
+
+    // システム管理者が所属メンバーではない団体を管理している場合、別途名前を取得する
+    React.useEffect(() => {
+        const fetchImpersonatedOrg = async () => {
+            if (activeOrganizationId && !currentOrg && user?.isSystemAdmin) {
+                try {
+                    const res = await api.get(`/organizations/${activeOrganizationId}`);
+                    if (res.data.success) {
+                        setImpersonatedOrgName(res.data.data.name);
+                    }
+                } catch (error) {
+                    console.error('Failed to fetch impersonated org name:', error);
+                    setImpersonatedOrgName('不明な組織');
+                }
+            } else {
+                setImpersonatedOrgName(null);
+            }
+        };
+        fetchImpersonatedOrg();
+    }, [activeOrganizationId, currentOrg, user?.isSystemAdmin]);
+
+    const isImpersonating = !!activeOrganizationId && !currentOrg && user?.isSystemAdmin;
+
     // 未選択の場合は最初の組織などをフォールバック表示（または「未選択」）
-    const orgName = currentOrg?.name || '組織未選択';
-    const orgRole = currentOrg?.role || '';
+    const displayOrgName = currentOrg?.name || impersonatedOrgName || (user?.isSystemAdmin ? 'システム管理モード' : '組織未選択');
+    const orgRoleText = isImpersonating ? '代理管理中' : (currentOrg?.role || (user?.isSystemAdmin ? 'SYSTEM ADMIN' : ''));
 
     const handleOrgSwitchClick = (orgId: string) => {
         if (orgId === activeOrganizationId) return;
@@ -95,10 +122,10 @@ export function AppSidebar() {
                                         </div>
                                         <div className="grid flex-1 text-left text-sm leading-tight">
                                             <span className="truncate font-semibold">
-                                                {orgName}
+                                                {displayOrgName}
                                             </span>
-                                            <span className="truncate text-xs">
-                                                {orgRole.toLowerCase()}
+                                            <span className={`truncate text-xs ${isImpersonating ? 'text-amber-500 font-medium' : ''}`}>
+                                                {orgRoleText.toLowerCase()}
                                             </span>
                                         </div>
                                         <ChevronsUpDown className="ml-auto" />
@@ -137,7 +164,22 @@ export function AppSidebar() {
                                         </DropdownMenuItem>
                                     ))}
                                     <DropdownMenuSeparator />
-                                    {/* 新規団体作成などはここに追加可能 */}
+                                    {user?.isSystemAdmin && activeOrganizationId && (
+                                        <DropdownMenuItem
+                                            onClick={() => {
+                                                console.log('[AppSidebar] Exiting organization management');
+                                                setActiveOrganization(null);
+                                                setCartOrganization(null);
+                                                window.location.href = '/admin/organizations';
+                                            }}
+                                            className="gap-2 p-2 text-destructive focus:text-destructive cursor-pointer"
+                                        >
+                                            <div className="flex size-6 items-center justify-center rounded-sm border border-destructive/20">
+                                                <ExitIcon className="size-4 shrink-0" />
+                                            </div>
+                                            <span className="truncate flex-1">組織管理を終了</span>
+                                        </DropdownMenuItem>
+                                    )}
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         </SidebarMenuItem>
@@ -146,118 +188,145 @@ export function AppSidebar() {
 
                 <SidebarContent>
                     {/* Platform Group */}
-                    <SidebarGroup>
-                        <SidebarGroupLabel>Platform</SidebarGroupLabel>
-                        <SidebarGroupContent>
-                            <SidebarMenu>
-                                <SidebarMenuItem>
-                                    <SidebarMenuButton
-                                        onClick={() => window.location.href = '/'}
-                                        isActive={location.pathname === '/'}
-                                    >
-                                        <LayoutDashboard />
-                                        <span>ダッシュボード</span>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
-                                <SidebarMenuItem>
-                                    <SidebarMenuButton
-                                        onClick={() => window.location.href = '/pos'}
-                                        isActive={location.pathname.startsWith('/pos')}
-                                    >
-                                        <ShoppingBasket />
-                                        <span>POSレジ</span>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
-                            </SidebarMenu>
-                        </SidebarGroupContent>
-                    </SidebarGroup>
-
-                    {/* Management Group - Only for Admins or System Admins */}
-                    {(orgRole === Role.ADMIN || user?.isSystemAdmin) && (
+                    {/* Platform Group - Hide in System Admin Mode (no org selected) unless they are System Admin */}
+                    {(activeOrganizationId || user?.isSystemAdmin) && (
                         <SidebarGroup>
-                            <SidebarGroupLabel>Management</SidebarGroupLabel>
+                            <SidebarGroupLabel>Platform</SidebarGroupLabel>
                             <SidebarGroupContent>
                                 <SidebarMenu>
                                     <SidebarMenuItem>
                                         <SidebarMenuButton
-                                            onClick={() => {
-                                                const targetId = activeOrganizationId || user?.organizations?.[0]?.id;
-                                                if (targetId) {
-                                                    window.location.href = `/admin/${targetId}/dashboard`;
-                                                } else {
-                                                    // 組織がない場合は選択画面へ
-                                                    window.location.href = '/select-org';
-                                                }
-                                            }}
-                                            isActive={location.pathname.includes('/dashboard')}
+                                            onClick={() => window.location.href = '/'}
+                                            isActive={location.pathname === '/'}
                                         >
                                             <LayoutDashboard />
-                                            <span>分析ダッシュボード</span>
+                                            <span>ダッシュボード</span>
                                         </SidebarMenuButton>
                                     </SidebarMenuItem>
                                     <SidebarMenuItem>
-                                        <SidebarMenuButton
-                                            onClick={() => {
-                                                const targetId = activeOrganizationId || user?.organizations?.[0]?.id;
-                                                if (targetId) window.location.href = `/admin/${targetId}/categories`;
-                                            }}
-                                            isActive={location.pathname.includes('/categories')}
-                                        >
-                                            <Tags />
-                                            <span>商品カテゴリ</span>
-                                        </SidebarMenuButton>
+                                        <PermissionGuard permission="transaction:create" fallback={null}>
+                                            <SidebarMenuButton
+                                                onClick={() => window.location.href = '/pos'}
+                                                isActive={location.pathname.startsWith('/pos')}
+                                            >
+                                                <ShoppingBasket />
+                                                <span>POSレジ</span>
+                                            </SidebarMenuButton>
+                                        </PermissionGuard>
                                     </SidebarMenuItem>
-                                    <SidebarMenuItem>
-                                        <SidebarMenuButton
-                                            onClick={() => {
-                                                const targetId = activeOrganizationId || user?.organizations?.[0]?.id;
-                                                if (targetId) window.location.href = `/admin/${targetId}/products`;
-                                            }}
-                                            isActive={location.pathname.includes('/products')}
-                                        >
-                                            <ListFilter />
-                                            <span>商品管理</span>
-                                        </SidebarMenuButton>
-                                    </SidebarMenuItem>
-                                    <SidebarMenuItem>
-                                        <SidebarMenuButton
-                                            onClick={() => {
-                                                const targetId = activeOrganizationId || user?.organizations?.[0]?.id;
-                                                if (targetId) window.location.href = `/admin/${targetId}/discounts`;
-                                            }}
-                                            isActive={location.pathname.includes('/discounts')}
-                                        >
-                                            <Tags />
-                                            <span>割引管理</span>
-                                        </SidebarMenuButton>
-                                    </SidebarMenuItem>
+                                </SidebarMenu>
+                            </SidebarGroupContent>
+                        </SidebarGroup>
+                    )}
 
-                                    <SidebarMenuItem>
-                                        <SidebarMenuButton
-                                            onClick={() => {
-                                                const targetId = activeOrganizationId || user?.organizations?.[0]?.id;
-                                                if (targetId) window.location.href = `/admin/${targetId}/transactions`;
-                                            }}
-                                            isActive={location.pathname.includes('/transactions')}
-                                        >
-                                            <History />
-                                            <span>取引履歴</span>
-                                        </SidebarMenuButton>
-                                    </SidebarMenuItem>
-
-                                    <SidebarMenuItem>
-                                        <SidebarMenuButton
-                                            onClick={() => {
-                                                const targetId = activeOrganizationId || user?.organizations?.[0]?.id;
-                                                if (targetId) window.location.href = `/admin/${targetId}/staff`;
-                                            }}
-                                            isActive={location.pathname.includes('/staff')}
-                                        >
-                                            <Users />
-                                            <span>スタッフ管理</span>
-                                        </SidebarMenuButton>
-                                    </SidebarMenuItem>
-
+                    {/* Management Group - Hide in System Admin Mode (no org selected) */}
+                    {activeOrganizationId && (
+                        <SidebarGroup>
+                            <SidebarGroupLabel>Management</SidebarGroupLabel>
+                            <SidebarGroupContent>
+                                <SidebarMenu>
+                                    <PermissionGuard permission="dashboard:view">
+                                        <SidebarMenuItem>
+                                            <SidebarMenuButton
+                                                onClick={() => {
+                                                    const targetId = activeOrganizationId || user?.organizations?.[0]?.id;
+                                                    if (targetId) {
+                                                        window.location.href = `/admin/${targetId}/dashboard`;
+                                                    } else {
+                                                        window.location.href = '/select-org';
+                                                    }
+                                                }}
+                                                isActive={location.pathname.includes('/dashboard')}
+                                            >
+                                                <LayoutDashboard />
+                                                <span>分析ダッシュボード</span>
+                                            </SidebarMenuButton>
+                                        </SidebarMenuItem>
+                                    </PermissionGuard>
+                                    <PermissionGuard permission="category:read">
+                                        <SidebarMenuItem>
+                                            <SidebarMenuButton
+                                                onClick={() => {
+                                                    const targetId = activeOrganizationId || user?.organizations?.[0]?.id;
+                                                    if (targetId) window.location.href = `/admin/${targetId}/categories`;
+                                                }}
+                                                isActive={location.pathname.includes('/categories')}
+                                            >
+                                                <Tags />
+                                                <span>商品カテゴリ</span>
+                                            </SidebarMenuButton>
+                                        </SidebarMenuItem>
+                                    </PermissionGuard>
+                                    <PermissionGuard permission="product:read">
+                                        <SidebarMenuItem>
+                                            <SidebarMenuButton
+                                                onClick={() => {
+                                                    const targetId = activeOrganizationId || user?.organizations?.[0]?.id;
+                                                    if (targetId) window.location.href = `/admin/${targetId}/products`;
+                                                }}
+                                                isActive={location.pathname.includes('/products')}
+                                            >
+                                                <ListFilter />
+                                                <span>商品管理</span>
+                                            </SidebarMenuButton>
+                                        </SidebarMenuItem>
+                                    </PermissionGuard>
+                                    <PermissionGuard permission="discount:read">
+                                        <SidebarMenuItem>
+                                            <SidebarMenuButton
+                                                onClick={() => {
+                                                    const targetId = activeOrganizationId || user?.organizations?.[0]?.id;
+                                                    if (targetId) window.location.href = `/admin/${targetId}/discounts`;
+                                                }}
+                                                isActive={location.pathname.includes('/discounts')}
+                                            >
+                                                <Tags />
+                                                <span>割引管理</span>
+                                            </SidebarMenuButton>
+                                        </SidebarMenuItem>
+                                    </PermissionGuard>
+                                    <PermissionGuard permission="transaction:read">
+                                        <SidebarMenuItem>
+                                            <SidebarMenuButton
+                                                onClick={() => {
+                                                    const targetId = activeOrganizationId || user?.organizations?.[0]?.id;
+                                                    if (targetId) window.location.href = `/admin/${targetId}/transactions`;
+                                                }}
+                                                isActive={location.pathname.includes('/transactions')}
+                                            >
+                                                <History />
+                                                <span>取引履歴</span>
+                                            </SidebarMenuButton>
+                                        </SidebarMenuItem>
+                                    </PermissionGuard>
+                                    <PermissionGuard permission="member:read">
+                                        <SidebarMenuItem>
+                                            <SidebarMenuButton
+                                                onClick={() => {
+                                                    const targetId = activeOrganizationId || user?.organizations?.[0]?.id;
+                                                    if (targetId) window.location.href = `/admin/${targetId}/staff`;
+                                                }}
+                                                isActive={location.pathname.includes('/staff')}
+                                            >
+                                                <Users />
+                                                <span>スタッフ管理</span>
+                                            </SidebarMenuButton>
+                                        </SidebarMenuItem>
+                                    </PermissionGuard>
+                                    <PermissionGuard permission="role:read">
+                                        <SidebarMenuItem>
+                                            <SidebarMenuButton
+                                                onClick={() => {
+                                                    const targetId = activeOrganizationId || user?.organizations?.[0]?.id;
+                                                    if (targetId) window.location.href = `/admin/${targetId}/roles`;
+                                                }}
+                                                isActive={location.pathname.startsWith(`/admin/${activeOrganizationId}/roles`)}
+                                            >
+                                                <Shield className="w-4 h-4" />
+                                                <span>ロール・権限管理</span>
+                                            </SidebarMenuButton>
+                                        </SidebarMenuItem>
+                                    </PermissionGuard>
                                 </SidebarMenu>
                             </SidebarGroupContent>
                         </SidebarGroup>
@@ -276,6 +345,22 @@ export function AppSidebar() {
                                         >
                                             <Users />
                                             <span>団体管理</span>
+                                        </SidebarMenuButton>
+                                    </SidebarMenuItem>
+                                    <SidebarMenuItem>
+                                        <SidebarMenuButton asChild isActive={location.pathname.startsWith('/system/roles')}>
+                                            <Link to="/system/roles">
+                                                <Shield className="mr-2 h-4 w-4" />
+                                                <span>ロール管理</span>
+                                            </Link>
+                                        </SidebarMenuButton>
+                                    </SidebarMenuItem>
+                                    <SidebarMenuItem>
+                                        <SidebarMenuButton asChild isActive={location.pathname.startsWith('/system/permissions')}>
+                                            <Link to="/system/permissions">
+                                                <Lock className="mr-2 h-4 w-4" />
+                                                <span>権限マスタ管理</span>
+                                            </Link>
                                         </SidebarMenuButton>
                                     </SidebarMenuItem>
                                 </SidebarMenu>

@@ -8,6 +8,9 @@
 
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { usePermission } from '@/hooks/usePermission';
+import { useToast } from '@/hooks/use-toast';
+import { useEffect } from 'react';
 import { CategoryTabs } from '@/components/pos/CategoryTabs';
 import { ProductGrid } from '@/components/pos/ProductGrid';
 import { CartPanel } from '@/components/pos/CartPanel';
@@ -19,8 +22,22 @@ import { useIsMobile } from '@/hooks/use-mobile';
 
 export default function OrderEntryPage() {
     const navigate = useNavigate();
+    const { can } = usePermission();
+    const { toast } = useToast();
     const isMobile = useIsMobile();
     const isDesktop = !isMobile;
+
+    // 権限チェック (取引作成権限がない場合はダッシュボードへ)
+    useEffect(() => {
+        if (!can('create', 'transaction') && !can('management', 'transaction') && !can('manage', 'all')) {
+            toast({
+                title: 'アクセス拒否',
+                description: 'レジ操作を行う権限がありません',
+                variant: 'destructive'
+            });
+            navigate('/access-denied');
+        }
+    }, [can, navigate, toast]);
 
     // カテゴリフィルター
     const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);

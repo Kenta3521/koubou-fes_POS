@@ -23,6 +23,7 @@ export interface UserWithOrganizations extends User {
         id: string;
         name: string;
         role: Role;
+        permissions: string[]; // CASL permission codes
     }>;
 }
 

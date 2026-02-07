@@ -7,6 +7,7 @@ import { createLogger } from './utils/logger.js';
 import authRoutes from './routes/auth.js';
 import usersRoutes from './routes/users.js';
 import organizationRoutes from './routes/organizations.js';
+import permissionsRoutes from './routes/permissions.js';
 
 
 
@@ -56,6 +57,7 @@ app.get('/health', (_req: Request, res: Response) => {
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', usersRoutes);
 app.use('/api/v1/organizations', organizationRoutes);
+app.use('/api/v1/permissions', permissionsRoutes);
 import webhookRoutes from './routes/webhooks.js';
 app.use('/api/v1/webhooks', webhookRoutes);
 import adminRoutes from './routes/admin.js';

@@ -55,8 +55,8 @@ export default function LoginPage() {
 
             console.log('Login successful:', user);
 
-            // ホームへ遷移
-            navigate('/');
+            // 組織選択ページへ遷移
+            navigate('/select-org');
 
         } catch (err) {
             console.error('Login failed:', err);

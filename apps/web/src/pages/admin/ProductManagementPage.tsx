@@ -23,13 +23,13 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Plus, Pencil, Trash2 } from 'lucide-react';
 import { ProductEditModal } from '@/features/admin/product/ProductEditModal';
 import { Category, Product } from '@koubou-fes-pos/shared';
-
-// Shared type definition locally for now if not present in @koubou-fes-pos/shared
-// (Assuming Category is imported correctly, Product is defined in Modal or shared)
+import { usePermission } from '@/hooks/usePermission';
 
 export default function ProductManagementPage() {
     const { orgId } = useParams<{ orgId: string }>();
     const { toast } = useToast();
+    const { can } = usePermission();
+
     const [products, setProducts] = useState<Product[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -126,6 +126,8 @@ export default function ProductManagementPage() {
     };
 
     const handleToggleActive = async (product: Product) => {
+        if (!can('update', 'product')) return;
+
         try {
             const newStatus = !product.isActive;
             // Optimistic update
@@ -168,9 +170,11 @@ export default function ProductManagementPage() {
         <div className="container mx-auto py-6 space-y-6">
             <div className="flex justify-between items-center">
                 <h1 className="text-3xl font-bold tracking-tight">商品管理</h1>
-                <Button onClick={handleCreate}>
-                    <Plus className="mr-2 h-4 w-4" /> 新規作成
-                </Button>
+                {can('create', 'product') && (
+                    <Button onClick={handleCreate}>
+                        <Plus className="mr-2 h-4 w-4" /> 新規作成
+                    </Button>
+                )}
             </div>
 
             <div className="flex items-center space-x-2 w-full md:w-auto">
@@ -225,15 +229,20 @@ export default function ProductManagementPage() {
                                         <Switch
                                             checked={product.isActive}
                                             onCheckedChange={() => handleToggleActive(product)}
+                                            disabled={!can('update', 'product')}
                                         />
                                     </TableCell>
                                     <TableCell className="text-right space-x-2">
-                                        <Button variant="ghost" size="icon" onClick={() => handleEdit(product)}>
-                                            <Pencil className="h-4 w-4" />
-                                        </Button>
-                                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => handleDelete(product)}>
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
+                                        {can('update', 'product') && (
+                                            <Button variant="ghost" size="icon" onClick={() => handleEdit(product)}>
+                                                <Pencil className="h-4 w-4" />
+                                            </Button>
+                                        )}
+                                        {can('delete', 'product') && (
+                                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => handleDelete(product)}>
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        )}
                                     </TableCell>
                                 </TableRow>
                             ))

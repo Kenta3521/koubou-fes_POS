@@ -71,7 +71,8 @@ export function ProductEditModal({
                 name,
                 price: Number(price),
                 stock: Number(stock),
-                categoryId: categoryId === 'none' ? undefined : categoryId,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                categoryId: (categoryId === 'none' ? null : categoryId) as any,
                 isActive,
             });
             onClose();
