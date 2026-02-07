@@ -24,7 +24,7 @@ router.get('/', authenticate, listOrganizations);
 router.post('/', authenticate, requireSystemAdmin, createOrganization);
 
 // GET /api/v1/organizations/:orgId
-router.get('/:orgId', authenticate, requireSystemAdmin, getOrganization);
+router.get('/:orgId', authenticate, checkPermission('read', 'org'), getOrganization);
 
 // PATCH /api/v1/organizations/:orgId
 router.patch('/:orgId', authenticate, requireSystemAdmin, updateOrganization);

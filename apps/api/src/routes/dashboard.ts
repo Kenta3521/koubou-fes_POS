@@ -8,7 +8,7 @@ const router: Router = Router({ mergeParams: true });
 
 // 全てのエンドポイントに認証が必要
 // Phase B: RBAC checkPermissionを利用
-router.use(authenticate, checkPermission('view', 'dashboard'));
+router.use(authenticate, checkPermission('read', 'dashboard'));
 
 // GET /api/v1/organizations/:orgId/dashboard/summary
 router.get('/summary', dashboardController.getSummary);

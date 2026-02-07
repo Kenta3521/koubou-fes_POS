@@ -6,12 +6,13 @@
 import { Router } from 'express';
 import { authenticate } from '../middlewares/auth.js';
 import { checkPermission } from '../middlewares/permission.js';
-import { getDiscounts, createDiscount, updateDiscount, deleteDiscount } from '../controllers/discountController.js';
+import * as discountController from '../controllers/discountController.js';
+import { createDiscount, updateDiscount, deleteDiscount } from '../controllers/discountController.js';
 
 const router: Router = Router({ mergeParams: true });
 
 // GET /api/v1/organizations/:orgId/discounts
-router.get('/', authenticate, checkPermission('read', 'discount'), getDiscounts);
+router.get('/', authenticate, checkPermission(['read', 'read_pos'], 'discount'), discountController.getDiscounts);
 
 // POST /api/v1/organizations/:orgId/discounts
 router.post('/', authenticate, checkPermission('create', 'discount'), createDiscount);

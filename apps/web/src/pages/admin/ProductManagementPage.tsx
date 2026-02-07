@@ -1,6 +1,5 @@
-
 import { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import {
@@ -27,8 +26,16 @@ import { usePermission } from '@/hooks/usePermission';
 
 export default function ProductManagementPage() {
     const { orgId } = useParams<{ orgId: string }>();
+    const navigate = useNavigate();
     const { toast } = useToast();
     const { can } = usePermission();
+
+    // 権限チェック
+    useEffect(() => {
+        if (!can('read', 'product')) {
+            navigate('/access-denied');
+        }
+    }, [can, navigate]);
 
     const [products, setProducts] = useState<Product[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);

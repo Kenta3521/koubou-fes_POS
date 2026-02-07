@@ -139,6 +139,18 @@ export default function OrderEntryPage() {
 
     // 会計へ進む
     const handleCheckout = () => {
+        // 在庫チェック
+        for (const item of cartItems) {
+            const product = products.find(p => p.id === item.productId);
+            if (product && item.quantity > product.stock) {
+                toast({
+                    title: '在庫不足',
+                    description: `${product.name} の在庫が不足しています（現在の在庫: ${product.stock}）`,
+                    variant: 'destructive'
+                });
+                return;
+            }
+        }
         navigate('/pos/confirm');
     };
 

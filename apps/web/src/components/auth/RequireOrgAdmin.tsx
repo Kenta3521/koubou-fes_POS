@@ -8,9 +8,18 @@ import { Link } from 'react-router-dom';
 export default function RequireOrgAdmin() {
     const { can } = usePermission();
 
-    // 管理画面の基本権限（ダッシュボード閲覧）があるか確認
-    // システム管理者は CASL 側で manage all 持っているので can('view', 'dashboard') は true になる
-    if (!can('view', 'dashboard')) {
+    // 管理画面の各ページへのアクセス権限があるか広義に確認
+    // いずれかのリソースに対して 'read' 権限があれば、レイアウトの表示（サイドバーの表示等）を許可する
+    const canAccessAdmin =
+        can('read', 'dashboard') ||
+        can('read', 'category') ||
+        can('read', 'product') ||
+        can('read', 'discount') ||
+        can('read', 'transaction') ||
+        can('read', 'member') ||
+        can('read', 'role');
+
+    if (!canAccessAdmin) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4 text-center">
                 <div className="bg-destructive/10 p-4 rounded-full">

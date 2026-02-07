@@ -31,11 +31,15 @@ api.interceptors.request.use((config) => {
     return config;
 });
 
-// レスポンスインターセプター（デバッグ用・将来のエラーハンドリング用）
+// レスポンスインターセプター
 api.interceptors.response.use(
     (response) => response,
     (error) => {
-        // 認証エラー時のリダイレクトなどをここに書く予定
+        // 403 Forbidden の場合にアクセス拒否ページへ遷移
+        if (error.response?.status === 403) {
+            console.warn('Access denied (403). Redirecting to /access-denied');
+            window.location.href = '/access-denied';
+        }
         return Promise.reject(error);
     }
 );

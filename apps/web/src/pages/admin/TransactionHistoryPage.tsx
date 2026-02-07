@@ -1,6 +1,5 @@
-
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
     Table,
     TableBody,
@@ -38,6 +37,7 @@ import {
     PaginationNext,
     PaginationPrevious,
 } from "@/components/ui/pagination";
+import { usePermission } from '@/hooks/usePermission';
 
 // Type definitions matching API response
 interface TransactionSummary {
@@ -58,6 +58,15 @@ interface Meta {
 
 export default function TransactionHistoryPage() {
     const { orgId } = useParams<{ orgId: string }>();
+    const navigate = useNavigate();
+    const { can } = usePermission();
+
+    // 権限チェック
+    useEffect(() => {
+        if (!can('read', 'transaction')) {
+            navigate('/access-denied');
+        }
+    }, [can, navigate]);
     const [transactions, setTransactions] = useState<TransactionSummary[]>([]);
     const [meta, setMeta] = useState<Meta>({ total: 0, page: 1, limit: 20, totalPages: 1 });
     const [isLoading, setIsLoading] = useState(false);

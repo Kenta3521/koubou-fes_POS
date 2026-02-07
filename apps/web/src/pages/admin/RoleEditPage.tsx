@@ -17,6 +17,7 @@ import { api } from '@/lib/api';
 import { ArrowLeft, Save, Loader2, ShieldCheck } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { usePermission } from '@/hooks/usePermission';
 
 interface PermissionMaster {
     id: string;
@@ -53,11 +54,18 @@ export default function RoleEditPage() {
 
     const isNew = roleId === 'new' || !roleId;
     const isSystemMode = !orgId;
+    const { can } = usePermission();
     const [isReadOnly, setIsReadOnly] = useState(false);
 
     const fetchData = useCallback(async () => {
         setIsLoading(true);
         try {
+            // Check basic permissions first
+            const hasUpdatePerm = isNew ? can('create', 'role') : can('update', 'role');
+            if (!hasUpdatePerm) {
+                setIsReadOnly(true);
+            }
+
             // Fetch Master Permissions
             const permRes = await api.get('/permissions');
             if (permRes.data.success) {
@@ -101,7 +109,7 @@ export default function RoleEditPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [orgId, roleId, isNew, navigate, toast, isSystemMode]);
+    }, [orgId, roleId, isNew, navigate, toast, isSystemMode, can]);
 
     useEffect(() => {
         fetchData();

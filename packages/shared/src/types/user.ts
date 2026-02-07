@@ -22,6 +22,7 @@ export interface UserWithOrganizations extends User {
     organizations: Array<{
         id: string;
         name: string;
+        isActive: boolean;
         role: Role;
         permissions: string[]; // CASL permission codes
     }>;

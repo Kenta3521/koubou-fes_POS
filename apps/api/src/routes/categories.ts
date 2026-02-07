@@ -10,9 +10,9 @@ import { listCategories, createCategory, updateCategory, deleteCategory, reorder
 
 const router: Router = Router({ mergeParams: true }); // mergeParams: 親ルートのパラメータを継承
 
-
 // GET /api/v1/organizations/:orgId/categories
-router.get('/', authenticate, checkPermission('read', 'category'), listCategories);
+// 団体内のカテゴリ一覧取得
+router.get('/', authenticate, checkPermission(['read', 'read_pos'], 'category'), listCategories);
 
 // POST /api/v1/organizations/:orgId/categories
 router.post('/', authenticate, checkPermission('create', 'category'), createCategory);
@@ -25,6 +25,5 @@ router.patch('/:categoryId', authenticate, checkPermission('update', 'category')
 
 // DELETE /api/v1/organizations/:orgId/categories/:categoryId
 router.delete('/:categoryId', authenticate, checkPermission('delete', 'category'), deleteCategory);
-
 
 export default router;

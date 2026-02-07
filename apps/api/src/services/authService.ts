@@ -39,11 +39,20 @@ export async function loginUser(
                         select: {
                             id: true,
                             name: true,
+                            isActive: true,
                         },
                     },
                     roles: {
                         include: {
-                            role: true,
+                            role: {
+                                include: {
+                                    permissions: {
+                                        include: {
+                                            permission: true
+                                        }
+                                    }
+                                }
+                            },
                         },
                     },
                 },
@@ -98,8 +107,9 @@ export async function loginUser(
                 return {
                     id: uo.organization.id,
                     name: uo.organization.name,
+                    isActive: uo.organization.isActive,
                     role: roleNames as Role,
-                    permissions: [],
+                    permissions: Array.from(new Set(uo.roles.flatMap(ur => ur.role.permissions.map(rp => rp.permission.code)))),
                 };
             }),
         },
@@ -199,11 +209,20 @@ export async function registerUser(
                             select: {
                                 id: true,
                                 name: true,
+                                isActive: true,
                             },
                         },
                         roles: {
                             include: {
-                                role: true,
+                                role: {
+                                    include: {
+                                        permissions: {
+                                            include: {
+                                                permission: true
+                                            }
+                                        }
+                                    }
+                                }
                             },
                         },
                     },
@@ -238,8 +257,9 @@ export async function registerUser(
                 return {
                     id: uo.organization.id,
                     name: uo.organization.name,
+                    isActive: uo.organization.isActive,
                     role: roleNames as Role,
-                    permissions: [],
+                    permissions: Array.from(new Set(uo.roles.flatMap(ur => ur.role.permissions.map(rp => rp.permission.code)))),
                 };
             }),
         },

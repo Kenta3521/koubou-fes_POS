@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { api } from '../../lib/api';
 import { Category } from '@koubou-fes-pos/shared';
@@ -21,10 +21,18 @@ import { usePermission } from '@/hooks/usePermission';
 
 export default function CategoryManagementPage() {
     const { orgId } = useParams<{ orgId: string }>();
-    const { user, activeOrganizationId: storeOrgId } = useAuthStore();
+    const { activeOrganizationId: storeOrgId } = useAuthStore();
     const activeOrganizationId = orgId || storeOrgId;
     const { toast } = useToast();
     const { can } = usePermission();
+    const navigate = useNavigate();
+
+    // 権限チェック (管理画面の閲覧権限がない場合はアクセス拒否)
+    useEffect(() => {
+        if (!can('read', 'category')) {
+            navigate('/access-denied');
+        }
+    }, [can, navigate]);
 
     const [categories, setCategories] = useState<Category[]>([]);
     const [isLoading, setIsLoading] = useState(true);

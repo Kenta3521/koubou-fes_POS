@@ -86,6 +86,7 @@ export async function authenticate(
                             select: {
                                 id: true,
                                 name: true,
+                                isActive: true,
                             },
                         },
                         roles: {
@@ -147,6 +148,7 @@ export async function authenticate(
                 return {
                     id: uo.organization.id,
                     name: uo.organization.name,
+                    isActive: uo.organization.isActive,
                     role: roleNames as Role,
                     permissions: finalPermissions,
                 };
@@ -229,10 +231,16 @@ export function requireOrgRole(allowedRoles: Role[]) {
         if (!membership) {
             res.status(403).json({
                 success: false,
-                error: {
-                    code: 'PERMISSION_DENIED',
-                    message: 'この組織に所属していません',
-                },
+                error: { code: 'PERMISSION_DENIED', message: 'この組織に所属していません' },
+            });
+            return;
+        }
+
+        // 団体のステータスチェック（システム管理者以外）
+        if (!membership.isActive) {
+            res.status(403).json({
+                success: false,
+                error: { code: 'ORGANIZATION_INACTIVE', message: 'この団体は現在無効化されています' },
             });
             return;
         }

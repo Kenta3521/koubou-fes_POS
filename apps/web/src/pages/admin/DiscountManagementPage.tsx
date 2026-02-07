@@ -1,6 +1,5 @@
-
 import { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -20,12 +19,20 @@ import { usePermission } from '@/hooks/usePermission';
 
 export default function DiscountManagementPage() {
     const { orgId } = useParams<{ orgId: string }>();
+    const navigate = useNavigate();
     const { toast } = useToast();
     const [discounts, setDiscounts] = useState<Discount[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const { can } = usePermission();
+
+    // 権限チェック
+    useEffect(() => {
+        if (!can('read', 'discount')) {
+            navigate('/access-denied');
+        }
+    }, [can, navigate]);
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingDiscount, setEditingDiscount] = useState<Discount | undefined>(undefined);

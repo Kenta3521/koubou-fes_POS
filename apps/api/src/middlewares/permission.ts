@@ -51,7 +51,16 @@ export function checkPermission(action: string | string[], subject: string) {
             return;
         }
 
-        // 5. Construct Ability
+        // 5. Organization Active check
+        if (!membership.isActive) {
+            res.status(403).json({
+                success: false,
+                error: { code: 'ORGANIZATION_INACTIVE', message: 'この団体は現在無効化されています' }
+            });
+            return;
+        }
+
+        // 6. Construct Ability
         // membership.permissions is populated by auth middleware
         const ability = defineAbilityFor(membership.permissions || [], req.user.id, false);
 

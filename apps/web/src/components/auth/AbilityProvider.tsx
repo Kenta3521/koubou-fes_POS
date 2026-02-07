@@ -1,4 +1,4 @@
-import React, { useEffect, ReactNode } from 'react';
+import React, { ReactNode } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { AbilityContext } from '@/contexts/AbilityContext';
 import { defineAbilityFor, createAppAbility } from '@koubou-fes-pos/shared';
@@ -13,39 +13,31 @@ const ability = createAppAbility();
 export default function AbilityProvider({ children }: AbilityProviderProps) {
     const { user, activeOrganizationId } = useAuthStore();
 
-    // 初期レンダリング時から権限を同期的に設定することで、useEffectを待たずにガードが機能するようにする
-    // (特に persists で localStorage から復元された直後に重要)
-    if (user) {
+    // Sync ability rules based on store state
+    const rules = React.useMemo(() => {
         let permissions: string[] = [];
-        if (!user.isSystemAdmin && activeOrganizationId) {
-            const membership = user.organizations?.find(o => o.id === activeOrganizationId);
-            permissions = membership?.permissions || [];
-        }
-        const initialAbility = defineAbilityFor(permissions, user.id, user.isSystemAdmin);
-        ability.update(initialAbility.rules);
-    }
-
-    useEffect(() => {
         if (user) {
-            let permissions: string[] = [];
-
-            if (user.isSystemAdmin) {
-                // System Admin logic is handled in defineAbilityFor
-            } else if (activeOrganizationId) {
+            if (!user.isSystemAdmin && activeOrganizationId) {
                 const membership = user.organizations?.find(o => o.id === activeOrganizationId);
                 permissions = membership?.permissions || [];
             }
-
-            // Generate new ability based on current state
-            const newAbility = defineAbilityFor(permissions, user.id, user.isSystemAdmin);
-
-            // Update the singleton instance with new rules
-            ability.update(newAbility.rules);
-        } else {
-            // Reset ability for guest
-            ability.update([]);
+            return defineAbilityFor(permissions, user.id, user.isSystemAdmin).rules;
         }
+        return [];
     }, [user, activeOrganizationId]);
+
+    // Update the singleton instance SYNCHRONOUSLY during render if rules changed
+    // This ensures child components (like POS guards) see the rules on first mount.
+    // casl-ability ensures that .update([]) is fast and only notifies if rules actually change.
+    // However, to be super safe against any React warn about "Cannot update a component while rendering a different component",
+    // we use a simple ref-like check or just let it notify. (Ability instance is external to React state).
+    const rulesJson = JSON.stringify(rules);
+    const lastRulesRef = React.useRef<string>("");
+
+    if (lastRulesRef.current !== rulesJson) {
+        ability.update(rules);
+        lastRulesRef.current = rulesJson;
+    }
 
     return (
         <AbilityContext.Provider value={ability}>
