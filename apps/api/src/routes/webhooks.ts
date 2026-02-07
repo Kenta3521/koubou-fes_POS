@@ -2,7 +2,8 @@ import { Router, Request, Response } from 'express';
 import crypto from 'crypto';
 import prisma from '../utils/prisma.js';
 import { completeTransaction } from '../services/transactionService.js';
-import { TransactionStatus } from '@prisma/client';
+import pkg from '@prisma/client';
+const { TransactionStatus } = pkg;
 import { getIO } from '../lib/socket.js';
 
 const router: Router = Router();

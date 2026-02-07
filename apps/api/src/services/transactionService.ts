@@ -1,5 +1,7 @@
 import prisma from '../utils/prisma.js';
-import { TransactionStatus, StockChangeReason, PaymentMethod } from '@prisma/client';
+import pkg from '@prisma/client';
+const { TransactionStatus, StockChangeReason } = pkg;
+import type { PaymentMethod } from '@prisma/client';
 import { calculateOrder } from './calculationService.js';
 
 interface CreateTransactionParams {

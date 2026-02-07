@@ -1,6 +1,7 @@
 import prisma from '../utils/prisma.js';
 import { CalculationResult, CalculatedItem, DiscountSummary } from '@koubou-fes-pos/shared';
-import { DiscountTargetType, DiscountConditionType, DiscountTriggerType, DiscountType } from '@prisma/client';
+import pkg from '@prisma/client';
+const { DiscountTargetType, DiscountConditionType, DiscountTriggerType, DiscountType } = pkg;
 
 export const calculateOrder = async (
     organizationId: string,

@@ -1,7 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 import { calculateOrder } from '../services/calculationService.js';
 import * as completeTransactionService from '../services/transactionService.js';
-import { TransactionStatus } from '@prisma/client';
+import pkg from '@prisma/client';
+const { TransactionStatus } = pkg;
+import type { TransactionStatus as TransactionStatusType } from '@prisma/client';
 import prisma from '../utils/prisma.js';
 import { PAYPAY } from '../lib/paypay.js';
 
@@ -496,7 +498,7 @@ export const getTransactions = async (req: Request, res: Response, next: NextFun
         }
 
         const paymentMethod = req.query.paymentMethod as string;
-        const status = req.query.status as TransactionStatus;
+        const status = req.query.status as TransactionStatusType;
 
         // 検索条件の構築
         const where: any = {

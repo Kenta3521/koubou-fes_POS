@@ -1,5 +1,5 @@
 import prisma from '../utils/prisma.js';
-import { User } from '@prisma/client';
+import type { User } from '@prisma/client';
 import { UpdateProfileRequest } from '@koubou-fes-pos/shared';
 
 /**

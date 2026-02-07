@@ -4,7 +4,9 @@
  */
 
 import 'dotenv/config';
-import { PrismaClient } from '@prisma/client';
+import type { PrismaClient as PrismaClientType } from '@prisma/client';
+import pkg from '@prisma/client';
+const { PrismaClient } = pkg;
 import { PrismaPg } from '@prisma/adapter-pg';
 import pg from 'pg';
 
@@ -17,7 +19,7 @@ console.log('Database connection string:', connectionString ? 'Set' : 'Not set')
 
 // 接続プールとPrismaクライアントをグローバルで保持し、ホットリロード時のリソースリークを防ぐ
 let pool: pg.Pool;
-let prisma: PrismaClient;
+let prisma: PrismaClientType;
 
 if (process.env.NODE_ENV === 'production') {
     pool = new Pool({ connectionString, ssl: false });
