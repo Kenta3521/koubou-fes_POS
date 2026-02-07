@@ -1,8 +1,8 @@
 
 import axios from 'axios';
-import { PrismaClient } from '@prisma/client';
-import { signToken } from '../utils/jwt'; // We might need to mock this or use api/login if possible, but let's try direct token gen for speed if we can access utils.
-// Actually, using api/login is safer as it tests the full flow.
+import pkg from '@prisma/client';
+const { PrismaClient } = pkg;
+import { generateToken } from '../utils/jwt';
 
 const API_URL = 'http://localhost:3001/api/v1';
 
@@ -23,15 +23,29 @@ async function main() {
 
         // Find Admin User
         const adminUserLink = await prisma.userOrganization.findFirst({
-            where: { organizationId: org.id, role: 'ADMIN' },
+            where: {
+                organizationId: org.id,
+                roles: {
+                    some: {
+                        role: { name: { in: ['管理者', 'ADMIN'] } }
+                    }
+                }
+            },
             include: { user: true }
         });
         if (!adminUserLink) throw new Error('No Admin found for org');
         const adminUser = adminUserLink.user;
 
-        // Find Staff User (or promote someone temporarily/create dummy)
-        let staffUserLink = await prisma.userOrganization.findFirst({
-            where: { organizationId: org.id, role: 'STAFF' },
+        // Find Staff User
+        const staffUserLink = await prisma.userOrganization.findFirst({
+            where: {
+                organizationId: org.id,
+                roles: {
+                    some: {
+                        role: { name: { in: ['スタッフ', 'Staff', 'STAFF'] } }
+                    }
+                }
+            },
             include: { user: true }
         });
 
@@ -44,21 +58,28 @@ async function main() {
         const nonMember = allUsers.find(u => !u.organizations.some(mo => mo.organizationId === org.id));
 
         // 2. Generate Tokens (Simulate Login)
-        // We need to verify verifyToken works or just hit login API.
-        // Since we have direct DB access, let's use the actual Login endpoint to get tokens properly
-        // But we don't know passwords (hashed). 
-        // ALTERNATIVE: Use `signToken` if available in our context.
-        // `apps/api/src/utils/jwt.ts` exists.
+        const { generateToken } = await import('../utils/jwt');
 
-        // Dynamic import to avoid build issues if mixed env
-        const { signToken } = await import('../utils/jwt');
+        const adminToken = generateToken({
+            userId: adminUser.id,
+            email: adminUser.email,
+            role: 'ADMIN',
+            organizationId: org.id
+        });
 
-        const adminToken = signToken({ userId: adminUser.id, email: adminUser.email, role: 'ADMIN' }); // Payload structure matters. 
-        // Wait, verifyToken implementation in auth.ts uses payload.userId. 
-        // payload structure in jwt.ts: { userId: string, email: string } usually? check jwt.ts
+        const staffToken = staffUserLink ? generateToken({
+            userId: (staffUserLink as any).user.id,
+            email: (staffUserLink as any).user.email,
+            role: 'STAFF',
+            organizationId: org.id
+        }) : null;
 
-        const staffToken = staffUserLink ? signToken({ userId: staffUserLink.user.id, email: staffUserLink.user.email }) : null;
-        const nonMemberToken = nonMember ? signToken({ userId: nonMember.id, email: nonMember.email }) : null;
+        const nonMemberToken = nonMember ? generateToken({
+            userId: nonMember.id,
+            email: nonMember.email,
+            role: 'STAFF',
+            organizationId: 'other-org-id'
+        }) : null;
 
         console.log('Tokens generated.');
 

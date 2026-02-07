@@ -55,11 +55,10 @@ async function main() {
                     paymentMethod: 'CASH',
                     items: {
                         create: {
-                            productName: 'Test Product',
-                            price: 1000,
+                            productId: 'dummy',
+                            unitPrice: 1000,
                             quantity: 1,
-                            productId: 'dummy' // might fail if foreign key, but schema might allow if optional or we need valid product
-                        }
+                        } as any
                     }
                 }
             });

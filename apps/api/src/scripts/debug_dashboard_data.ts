@@ -53,8 +53,8 @@ async function main() {
       include: { user: true }
     });
     console.log(`  Members:`);
-    members.forEach(m => {
-      console.log(`    - ${m.user.name} (${m.user.email}): ${m.role} [isSystemAdmin: ${m.user.isSystemAdmin}]`);
+    members.forEach((m: any) => {
+      console.log(`    - ${m.user.name} (${m.user.email}): ${m.role || 'N/A'} [isSystemAdmin: ${m.user.isSystemAdmin}]`);
     });
   }
 }

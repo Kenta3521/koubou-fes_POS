@@ -1,5 +1,6 @@
 import 'dotenv/config';
-import { PrismaClient } from '@prisma/client';
+import pkg from '@prisma/client';
+const { PrismaClient } = pkg;
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import * as bcrypt from 'bcrypt';
@@ -36,36 +37,40 @@ async function main() {
         },
     });
 
+    // Get roles
+    const adminRole = await prisma.serviceRole.findFirst({
+        where: { name: { in: ['管理者', 'ADMIN'] } }
+    });
+    const staffRole = await prisma.serviceRole.findFirst({
+        where: { name: { in: ['スタッフ', 'STAFF'] } }
+    });
+
+    if (!adminRole || !staffRole) {
+        throw new Error('Default roles not found. Please check seeding.');
+    }
+
     // Link to Org 1 as ADMIN
     await prisma.userOrganization.upsert({
-        where: {
-            userId_organizationId: {
-                userId: user.id,
-                organizationId: org1.id,
-            },
-        },
-        update: { role: 'ADMIN' },
-        create: {
-            userId: user.id,
-            organizationId: org1.id,
-            role: 'ADMIN',
-        },
+        where: { userId_organizationId: { userId: user.id, organizationId: org1.id } },
+        update: {},
+        create: { userId: user.id, organizationId: org1.id },
+    });
+    await prisma.userOrganizationRole.upsert({
+        where: { userId_organizationId_roleId: { userId: user.id, organizationId: org1.id, roleId: adminRole.id } },
+        update: {},
+        create: { userId: user.id, organizationId: org1.id, roleId: adminRole.id },
     });
 
     // Link to Org 2 as STAFF
     await prisma.userOrganization.upsert({
-        where: {
-            userId_organizationId: {
-                userId: user.id,
-                organizationId: org2.id,
-            },
-        },
-        update: { role: 'STAFF' },
-        create: {
-            userId: user.id,
-            organizationId: org2.id,
-            role: 'STAFF',
-        },
+        where: { userId_organizationId: { userId: user.id, organizationId: org2.id } },
+        update: {},
+        create: { userId: user.id, organizationId: org2.id },
+    });
+    await prisma.userOrganizationRole.upsert({
+        where: { userId_organizationId_roleId: { userId: user.id, organizationId: org2.id, roleId: staffRole.id } },
+        update: {},
+        create: { userId: user.id, organizationId: org2.id, roleId: staffRole.id },
     });
 
     console.log('✅ User created and linked to organizations!');

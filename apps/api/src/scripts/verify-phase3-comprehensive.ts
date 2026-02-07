@@ -5,7 +5,8 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import prisma from '../utils/prisma';
-import { TransactionStatus } from '@prisma/client';
+import pkg from '@prisma/client';
+const { TransactionStatus } = pkg;
 import jwt from 'jsonwebtoken';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -45,9 +46,9 @@ async function verifyPhase3() {
 
     // Generate Token
     const payload = {
-        userId: user.id, // Corrected from id to userId to match auth middleware
+        userId: user.id,
         email: user.email,
-        role: user.role,
+        role: (orgMembership as any).role, // Cast to any to bypass temporary type issues or use actual field
         organizationId: activeOrganizationId
     };
     const secret = process.env.JWT_SECRET || 'fallback-secret-key';

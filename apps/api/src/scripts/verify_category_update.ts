@@ -20,7 +20,7 @@ async function verifyCategoryUpdate() {
 
         // 1. Setup: Admin User and Organization
         const adminUserLink = await prisma.userOrganization.findFirst({
-            where: { role: 'ADMIN' },
+            where: { role: 'ADMIN' } as any,
             include: { user: true, organization: true }
         });
 

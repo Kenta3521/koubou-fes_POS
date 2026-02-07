@@ -45,6 +45,8 @@ export interface ChangePasswordRequest {
 export interface JWTPayload {
     userId: string;
     email: string;
+    organizationId?: string;
+    role?: string;
 }
 
 // Join Organization Request - API設計書.md 3.4

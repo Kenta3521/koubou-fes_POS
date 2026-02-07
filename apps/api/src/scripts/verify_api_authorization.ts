@@ -24,8 +24,8 @@ async function verifyAPIAuthorization() {
             return;
         }
 
-        const adminUser = organization.members.find(u => u.role === Role.ADMIN);
-        const staffUser = organization.members.find(u => u.role === Role.STAFF);
+        const adminUser = organization.members.find(u => (u as any).role === Role.ADMIN);
+        const staffUser = organization.members.find(u => (u as any).role === Role.STAFF);
 
         if (!adminUser) console.warn('No ADMIN user found for org.');
         if (!staffUser) console.warn('No STAFF user found for org.');

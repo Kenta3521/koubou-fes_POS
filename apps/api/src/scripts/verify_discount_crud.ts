@@ -23,7 +23,7 @@ async function verifyDiscountManagement() {
         }
 
         const orgId = organization.id;
-        const adminUser = organization.members.find(m => m.role === Role.ADMIN);
+        const adminUser = organization.members.find(m => (m as any).role === Role.ADMIN);
 
         if (!adminUser) {
             console.error('No admin user found for testing.');

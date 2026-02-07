@@ -21,7 +21,7 @@ async function verifyCategoryCreation() {
 
         // 1. Find a valid Admin User and Organization
         const adminUserLink = await prisma.userOrganization.findFirst({
-            where: { role: 'ADMIN' },
+            where: { role: 'ADMIN' } as any,
             include: { user: true, organization: true }
         });
 

@@ -28,7 +28,7 @@ async function verifyCategoryDelete() {
         orgId = organization.id;
 
         const adminLink = await prisma.userOrganization.findFirst({
-            where: { organizationId: orgId, role: 'ADMIN' },
+            where: { organizationId: orgId, role: 'ADMIN' } as any,
             include: { user: true }
         });
         if (!adminLink) throw new Error('No Admin found');

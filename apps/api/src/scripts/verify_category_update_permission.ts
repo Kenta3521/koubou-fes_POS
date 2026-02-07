@@ -29,7 +29,7 @@ async function verifyCategoryUpdatePermissions() {
 
         // Find ADMIN
         const adminLink = await prisma.userOrganization.findFirst({
-            where: { organizationId: orgId, role: 'ADMIN' },
+            where: { organizationId: orgId, role: 'ADMIN' } as any,
             include: { user: true }
         });
         const adminUser = adminLink?.user;
@@ -37,7 +37,7 @@ async function verifyCategoryUpdatePermissions() {
 
         // Find STAFF (or create temp)
         let staffLink = await prisma.userOrganization.findFirst({
-            where: { organizationId: orgId, role: 'STAFF' },
+            where: { organizationId: orgId, role: 'STAFF' } as any,
             include: { user: true }
         });
 
@@ -55,7 +55,7 @@ async function verifyCategoryUpdatePermissions() {
                         create: {
                             organizationId: orgId,
                             role: 'STAFF'
-                        }
+                        } as any
                     }
                 }
             });

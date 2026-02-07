@@ -3,7 +3,8 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import prisma from '../utils/prisma';
-import { TransactionStatus, PaymentMethod } from '@prisma/client';
+import pkg from '@prisma/client';
+const { TransactionStatus, PaymentMethod } = pkg;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
