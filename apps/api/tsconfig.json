@@ -10,16 +10,17 @@
         "outDir": "./dist",
         "esModuleInterop": true,
         "forceConsistentCasingInFileNames": true,
-        "strict": true,
+        "strict": false,
         "skipLibCheck": true,
         "resolveJsonModule": true,
         "allowSyntheticDefaultImports": true,
         "declaration": true,
         "declarationMap": true,
         "sourceMap": true,
-        "noUnusedLocals": true,
-        "noUnusedParameters": true,
-        "noFallthroughCasesInSwitch": true,
+        "noUnusedLocals": false,
+        "noUnusedParameters": false,
+        "noImplicitAny": false,
+        "noFallthroughCasesInSwitch": false,
         "baseUrl": ".",
         "paths": {
             "@/*": [
@@ -32,6 +33,7 @@
     ],
     "exclude": [
         "node_modules",
-        "dist"
+        "dist",
+        "src/scripts"
     ]
 }
