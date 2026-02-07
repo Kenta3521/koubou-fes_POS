@@ -4,8 +4,8 @@
  */
 
 import 'dotenv/config';
-import type { PrismaClient as PrismaClientType } from '@prisma/client';
-import pkg from '@prisma/client';
+import type { PrismaClient as PrismaClientType } from '../generated/client/index.js';
+import pkg from '../generated/client/index.js';
 const { PrismaClient } = pkg;
 import { PrismaPg } from '@prisma/adapter-pg';
 import pg from 'pg';

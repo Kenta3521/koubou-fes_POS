@@ -11,6 +11,7 @@ dist/
 build/
 .next/
 out/
+apps/api/src/generated/
 
 # Misc
 .DS_Store
