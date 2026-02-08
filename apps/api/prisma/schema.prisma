@@ -98,7 +98,8 @@ model Category {
   name           String
   sortOrder      Int          @default(0)
   organization   Organization @relation(fields: [organizationId], references: [id])
-  discounts      Discount[]
+  discounts      Discount[]   @relation("TargetCategory")
+  conditionDiscounts Discount[] @relation("ConditionCategory")
   products       Product[]
 }
 
@@ -111,7 +112,8 @@ model Product {
   stock             Int               @default(0)
   isActive          Boolean           @default(true)
   deletedAt         DateTime?
-  targetedDiscounts Discount[]
+  targetedDiscounts Discount[]        @relation("TargetProduct")
+  conditionDiscounts Discount[]       @relation("ConditionProduct")
   category          Category?         @relation(fields: [categoryId], references: [id])
   organization      Organization      @relation(fields: [organizationId], references: [id])
   stockLogs         StockLog[]
@@ -143,9 +145,14 @@ model Discount {
   validFrom        DateTime?
   validTo          DateTime?
   targetCategoryId String?
+  conditionTargetType DiscountTargetType @default(ORDER_TOTAL)
+  conditionProductId  String?
+  conditionCategoryId String?
   organization     Organization          @relation(fields: [organizationId], references: [id])
-  category         Category?             @relation(fields: [targetCategoryId], references: [id])
-  product          Product?              @relation(fields: [targetProductId], references: [id])
+  category         Category?             @relation("TargetCategory", fields: [targetCategoryId], references: [id])
+  product          Product?              @relation("TargetProduct", fields: [targetProductId], references: [id])
+  conditionCategory Category?            @relation("ConditionCategory", fields: [conditionCategoryId], references: [id])
+  conditionProduct  Product?             @relation("ConditionProduct", fields: [conditionProductId], references: [id])
   transactions     Transaction[]
   transactionItems TransactionItem[]
 }
@@ -201,8 +208,9 @@ model AuditLog {
   userId         String
   action         String
   targetId       String?
-  payload        Json?
-  createdAt      DateTime      @default(now())
+  payload             Json?
+  isSystemAdminAction Boolean       @default(false)
+  createdAt           DateTime      @default(now())
   organization   Organization? @relation(fields: [organizationId], references: [id])
   user           User          @relation(fields: [userId], references: [id])
 }

@@ -80,7 +80,19 @@ export const calculateOrder = async (
         }
     }
 
-    // 3. 各商品の計算（割引適用）
+    // 3. カテゴリごとの合計集計 (P4 追加: カテゴリ単位の割引判定用)
+    const categoryTotals = new Map<string, { quantity: number; amount: number }>();
+    for (const item of items) {
+        const product = productMap.get(item.productId);
+        if (product && product.categoryId) {
+            const current = categoryTotals.get(product.categoryId) || { quantity: 0, amount: 0 };
+            current.quantity += item.quantity;
+            current.amount += product.price * item.quantity;
+            categoryTotals.set(product.categoryId, current);
+        }
+    }
+
+    // 4. 各商品の計算（割引適用）
     const calculatedItems: CalculatedItem[] = items.map(item => {
         const product = productMap.get(item.productId);
         if (!product) {
@@ -94,22 +106,51 @@ export const calculateOrder = async (
 
         // 商品対象の自動割引を検索
         const applicableDiscounts = activeAutoDiscounts.filter(d => {
-            // 対象チェック
-            if (d.targetType === DiscountTargetType.SPECIFIC_PROD && d.targetProductId === item.productId) {
-                // 条件チェック
-                if (d.conditionType === DiscountConditionType.MIN_QUANTITY) {
-                    return item.quantity >= d.conditionValue;
+            // --- 1. トリガー判定 (Condition Check) ---
+            let conditionMet = false;
+            const cType = (d as any).conditionTargetType || d.targetType; // Fallback to targetType for legacy data
+            const cProdId = (d as any).conditionProductId || d.targetProductId;
+            const cCatId = (d as any).conditionCategoryId || d.targetCategoryId;
+
+            if (cType === DiscountTargetType.SPECIFIC_PROD && cProdId) {
+                const targetItem = items.find(i => i.productId === cProdId);
+                if (targetItem) {
+                    if (d.conditionType === DiscountConditionType.MIN_QUANTITY) {
+                        conditionMet = targetItem.quantity >= d.conditionValue;
+                    } else if (d.conditionType === DiscountConditionType.MIN_AMOUNT) {
+                        const condProduct = productMap.get(cProdId);
+                        const price = condProduct ? condProduct.price : 0;
+                        conditionMet = (targetItem.quantity * price) >= d.conditionValue;
+                    } else {
+                        conditionMet = true;
+                    }
                 }
-                return true;
+            } else if (cType === DiscountTargetType.CATEGORY && cCatId) {
+                const totals = categoryTotals.get(cCatId);
+                if (totals) {
+                    if (d.conditionType === DiscountConditionType.MIN_QUANTITY) {
+                        conditionMet = totals.quantity >= d.conditionValue;
+                    } else if (d.conditionType === DiscountConditionType.MIN_AMOUNT) {
+                        conditionMet = totals.amount >= d.conditionValue;
+                    } else {
+                        conditionMet = true;
+                    }
+                }
+            } else if (cType === DiscountTargetType.ORDER_TOTAL) {
+                // ORDER_TOTAL trigger is handled at the end, but if it's an auto-discount 
+                // we might want it to apply to items as well if condition is order-total?
+                // For now, let's stick to item-level triggers for item-level applications.
+                // Actually, if trigger is ORDER_TOTAL, we need to know gross total.
             }
 
-            // カテゴリ対象 (P4 追加実装)
-            if (d.targetType === DiscountTargetType.CATEGORY && (d as any).targetCategoryId && (d as any).targetCategoryId === product.categoryId) {
-                // 条件チェック (簡易的にアイテム単位での数量チェックとする)
-                // 本来はカテゴリ内合計数量などを計算すべきだが、現状のアーキテクチャに合わせてアイテム単位で判定
-                if (d.conditionType === DiscountConditionType.MIN_QUANTITY) {
-                    return item.quantity >= d.conditionValue;
-                }
+            if (!conditionMet) return false;
+
+            // --- 2. 適用対象判定 (Application Target Check) ---
+            // この商品が割引の対象かチェック
+            if (d.targetType === DiscountTargetType.SPECIFIC_PROD && d.targetProductId === item.productId) {
+                return true;
+            }
+            if (d.targetType === DiscountTargetType.CATEGORY && d.targetCategoryId === product.categoryId) {
                 return true;
             }
 
@@ -119,19 +160,47 @@ export const calculateOrder = async (
         // マニュアル割引が商品/カテゴリ対象なら候補に追加
         if (manualDiscount) {
             let isApplicable = false;
-            // 特定商品対象
-            if (manualDiscount.targetType === DiscountTargetType.SPECIFIC_PROD && manualDiscount.targetProductId === item.productId) {
-                if (manualDiscount.conditionType === DiscountConditionType.MIN_QUANTITY) {
-                    isApplicable = item.quantity >= manualDiscount.conditionValue;
-                } else {
-                    isApplicable = true;
+
+            // --- 1. トリガー判定 (Condition Check) ---
+            let conditionMet = false;
+            const cType = (manualDiscount as any).conditionTargetType || manualDiscount.targetType;
+            const cProdId = (manualDiscount as any).conditionProductId || manualDiscount.targetProductId;
+            const cCatId = (manualDiscount as any).conditionCategoryId || manualDiscount.targetCategoryId;
+
+            if (cType === DiscountTargetType.SPECIFIC_PROD && cProdId) {
+                const triggerItem = items.find(i => i.productId === cProdId);
+                if (triggerItem) {
+                    if (manualDiscount.conditionType === DiscountConditionType.MIN_QUANTITY) {
+                        conditionMet = triggerItem.quantity >= manualDiscount.conditionValue;
+                    } else if (manualDiscount.conditionType === DiscountConditionType.MIN_AMOUNT) {
+                        const condProduct = productMap.get(cProdId);
+                        const price = condProduct ? condProduct.price : 0;
+                        conditionMet = (triggerItem.quantity * price) >= manualDiscount.conditionValue;
+                    } else {
+                        conditionMet = true;
+                    }
                 }
+            } else if (cType === DiscountTargetType.CATEGORY && cCatId) {
+                const totals = categoryTotals.get(cCatId);
+                if (totals) {
+                    if (manualDiscount.conditionType === DiscountConditionType.MIN_QUANTITY) {
+                        conditionMet = totals.quantity >= manualDiscount.conditionValue;
+                    } else if (manualDiscount.conditionType === DiscountConditionType.MIN_AMOUNT) {
+                        conditionMet = totals.amount >= manualDiscount.conditionValue;
+                    } else {
+                        conditionMet = true;
+                    }
+                }
+            } else {
+                // ORDER_TOTAL manual trigger is usually always met or checked below
+                conditionMet = true;
             }
-            // カテゴリ対象
-            else if (manualDiscount.targetType === DiscountTargetType.CATEGORY && (manualDiscount as any).targetCategoryId && (manualDiscount as any).targetCategoryId === product.categoryId) {
-                if (manualDiscount.conditionType === DiscountConditionType.MIN_QUANTITY) {
-                    isApplicable = item.quantity >= manualDiscount.conditionValue;
-                } else {
+
+            // --- 2. 適用対象判定 (Application Target Check) ---
+            if (conditionMet) {
+                if (manualDiscount.targetType === DiscountTargetType.SPECIFIC_PROD && manualDiscount.targetProductId === item.productId) {
+                    isApplicable = true;
+                } else if (manualDiscount.targetType === DiscountTargetType.CATEGORY && manualDiscount.targetCategoryId === product.categoryId) {
                     isApplicable = true;
                 }
             }
@@ -190,10 +259,37 @@ export const calculateOrder = async (
     if (manualDiscount && manualDiscount.targetType === DiscountTargetType.ORDER_TOTAL) {
         // 対象チェック (ORDER_TOTAL)
         let isValid = false;
-        if (manualDiscount.conditionType === DiscountConditionType.MIN_AMOUNT) {
-            isValid = netTotalAfterItemDiscount >= manualDiscount.conditionValue;
-        } else {
-            isValid = true;
+        const cType = (manualDiscount as any).conditionTargetType || manualDiscount.targetType;
+        const cValue = manualDiscount.conditionValue;
+
+        if (cType === DiscountTargetType.ORDER_TOTAL) {
+            if (manualDiscount.conditionType === DiscountConditionType.MIN_AMOUNT) {
+                isValid = netTotalAfterItemDiscount >= cValue;
+            } else {
+                isValid = true;
+            }
+        } else if (cType === DiscountTargetType.CATEGORY) {
+            const cCatId = (manualDiscount as any).conditionCategoryId;
+            const totals = categoryTotals.get(cCatId || '');
+            if (totals) {
+                if (manualDiscount.conditionType === DiscountConditionType.MIN_QUANTITY) {
+                    isValid = totals.quantity >= cValue;
+                } else if (manualDiscount.conditionType === DiscountConditionType.MIN_AMOUNT) {
+                    isValid = totals.amount >= cValue;
+                } else {
+                    isValid = true;
+                }
+            }
+        } else if (cType === DiscountTargetType.SPECIFIC_PROD) {
+            const cProdId = (manualDiscount as any).conditionProductId;
+            const item = items.find(i => i.productId === cProdId);
+            if (item) {
+                if (manualDiscount.conditionType === DiscountConditionType.MIN_QUANTITY) {
+                    isValid = item.quantity >= cValue;
+                } else {
+                    isValid = true;
+                }
+            }
         }
 
         if (isValid) {

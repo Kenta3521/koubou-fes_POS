@@ -38,8 +38,8 @@ export function ProductEditModal({
     categories,
 }: ProductEditModalProps) {
     const [name, setName] = useState('');
-    const [price, setPrice] = useState(0);
-    const [stock, setStock] = useState(0);
+    const [price, setPrice] = useState<number | string>(0);
+    const [stock, setStock] = useState<number | string>(0);
     const [categoryId, setCategoryId] = useState<string>('');
     const [isActive, setIsActive] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -55,8 +55,8 @@ export function ProductEditModal({
             } else {
                 // Reset for create mode
                 setName('');
-                setPrice(0);
-                setStock(0);
+                setPrice('');
+                setStock('');
                 setCategoryId('none');
                 setIsActive(true);
             }
@@ -116,7 +116,7 @@ export function ProductEditModal({
                                 type="number"
                                 min="0"
                                 value={price}
-                                onChange={(e) => setPrice(Number(e.target.value))}
+                                onChange={(e) => setPrice(e.target.value === '' ? '' : Number(e.target.value))}
                                 className="col-span-3"
                                 required
                             />
@@ -130,7 +130,7 @@ export function ProductEditModal({
                                 type="number"
                                 min="0"
                                 value={stock}
-                                onChange={(e) => setStock(Number(e.target.value))}
+                                onChange={(e) => setStock(e.target.value === '' ? '' : Number(e.target.value))}
                                 className="col-span-3"
                                 required
                             />

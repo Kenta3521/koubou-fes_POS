@@ -40,7 +40,11 @@ export async function listRoles(req: Request, res: Response): Promise<void> {
                     include: { permission: true }
                 },
                 _count: {
-                    select: { userRoles: true }
+                    select: {
+                        userRoles: {
+                            where: { organizationId: orgId }
+                        }
+                    }
                 }
             },
             orderBy: [
@@ -241,6 +245,7 @@ export async function listRoleMembers(req: Request, res: Response): Promise<void
             where: { id: roleId },
             include: {
                 userRoles: {
+                    where: { organizationId: orgId },
                     include: {
                         userOrganization: {
                             include: {
@@ -373,11 +378,19 @@ export async function removeRoleFromMember(req: Request, res: Response): Promise
             }
         }
 
-        await prisma.userOrganizationRole.delete({
-            where: {
-                userId_organizationId_roleId: { userId, organizationId: orgId, roleId }
+        try {
+            await prisma.userOrganizationRole.delete({
+                where: {
+                    userId_organizationId_roleId: { userId, organizationId: orgId, roleId }
+                }
+            });
+        } catch (error: any) {
+            // P2025: Record to delete does not exist.
+            // In case of idempotent delete or stale UI, we treat this as success or already done.
+            if (error.code !== 'P2025') {
+                throw error;
             }
-        });
+        }
 
         res.status(200).json({ success: true, message: 'ロールの割り当てを解除しました' });
     } catch (error) {

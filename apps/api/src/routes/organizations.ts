@@ -48,6 +48,10 @@ router.use('/:orgId/transactions', transactionRoutes);
 // Member Routes
 router.use('/:orgId/members', memberRoutes);
 
+// Audit Log Routes
+import { getOrganizationAuditLogs } from '../controllers/auditController.js';
+router.get('/:orgId/audit-logs', authenticate, checkPermission('read', 'audit'), getOrganizationAuditLogs);
+
 // Dashboard Routes
 router.use('/:orgId/dashboard', dashboardRoutes);
 

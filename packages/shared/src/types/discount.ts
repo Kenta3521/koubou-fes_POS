@@ -16,6 +16,9 @@ export interface Discount {
     triggerType: DiscountTriggerType;
     validFrom: Date | null;
     validTo: Date | null;
+    conditionTargetType: DiscountTargetType;
+    conditionProductId: string | null;
+    conditionCategoryId: string | null;
     product?: {
         id: string;
         name: string;
@@ -40,6 +43,9 @@ export interface CreateDiscountRequest {
     triggerType?: DiscountTriggerType;
     validFrom?: Date | null;
     validTo?: Date | null;
+    conditionTargetType?: DiscountTargetType;
+    conditionProductId?: string | null;
+    conditionCategoryId?: string | null;
 }
 
 export type UpdateDiscountRequest = Partial<CreateDiscountRequest>;

@@ -40,4 +40,8 @@ router.delete('/roles/:roleId/members/:userId', removeRoleMemberSystem);
 router.get('/permissions', fetchAllPermissions);
 router.put('/permissions/:id', updatePermission);
 
+// Audit Logs
+import { getAllAuditLogs } from '../controllers/auditController.js';
+router.get('/audit-logs', getAllAuditLogs);
+
 export default router;
