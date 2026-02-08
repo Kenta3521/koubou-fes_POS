@@ -8,7 +8,11 @@ import {
     updateRoleSystem,
     deleteRoleSystem,
     fetchAllPermissions,
-    updatePermission
+    updatePermission,
+    listRoleMembersSystem,
+    addRoleMemberSystem,
+    removeRoleMemberSystem,
+    listUsersSystem
 } from '../controllers/adminController.js';
 
 const router: Router = Router();
@@ -23,10 +27,14 @@ router.get('/organizations/list', getOrganizationList);
 router.get('/organizations/sales', getOrganizationSalesList);
 
 // Role Management (System/Global)
+router.get('/users', listUsersSystem);
 router.get('/roles', listAllRoles);
 router.post('/roles', createRoleSystem);
 router.put('/roles/:roleId', updateRoleSystem);
 router.delete('/roles/:roleId', deleteRoleSystem);
+router.get('/roles/:roleId/members', listRoleMembersSystem);
+router.post('/roles/:roleId/members', addRoleMemberSystem);
+router.delete('/roles/:roleId/members/:userId', removeRoleMemberSystem);
 
 // Permission Management
 router.get('/permissions', fetchAllPermissions);

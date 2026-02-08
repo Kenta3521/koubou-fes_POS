@@ -21,7 +21,6 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api';
 import { Shield, Settings2, Plus, ArrowRight, Trash2, Users, Eye } from 'lucide-react';
-import { RoleMemberAssignmentModal } from '@/components/admin/RoleMemberAssignmentModal';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -41,6 +40,7 @@ interface RoleRecord {
     description: string | null;
     isSystemRole: boolean;
     permissions: string[];
+    memberCount: number;
 }
 
 export default function RoleManagementPage() {
@@ -50,9 +50,6 @@ export default function RoleManagementPage() {
     const { can } = usePermission();
     const [roles, setRoles] = useState<RoleRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-
-    const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false);
-    const [selectedRole, setSelectedRole] = useState<RoleRecord | null>(null);
 
     const fetchRoles = useCallback(async () => {
         if (!orgId) return;
@@ -129,17 +126,18 @@ export default function RoleManagementPage() {
                                 <TableHead className="w-[200px]">ロール名</TableHead>
                                 <TableHead>説明</TableHead>
                                 <TableHead className="w-[100px]">権限数</TableHead>
+                                <TableHead className="w-[100px]">メンバー数</TableHead>
                                 <TableHead className="text-right">操作</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {isLoading ? (
                                 <TableRow>
-                                    <TableCell colSpan={4} className="text-center py-8">読み込み中...</TableCell>
+                                    <TableCell colSpan={5} className="text-center py-8">読み込み中...</TableCell>
                                 </TableRow>
                             ) : roles.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">ロールが定義されていません</TableCell>
+                                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">ロールが定義されていません</TableCell>
                                 </TableRow>
                             ) : (
                                 roles.map((role) => {
@@ -164,17 +162,17 @@ export default function RoleManagementPage() {
                                             <TableCell>
                                                 <Badge variant="outline">{role.permissions.length}</Badge>
                                             </TableCell>
+                                            <TableCell>
+                                                <Badge variant="secondary">{role.memberCount}</Badge>
+                                            </TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex justify-end gap-2">
                                                     {can('assign', 'role') && (
                                                         <Button
                                                             size="sm"
                                                             variant="outline"
-                                                            className="flex items-center gap-1"
-                                                            onClick={() => {
-                                                                setSelectedRole(role);
-                                                                setIsAssignmentModalOpen(true);
-                                                            }}
+                                                            className="flex items-center gap-2"
+                                                            onClick={() => navigate(`/admin/${orgId}/roles/${role.id}/members`)}
                                                         >
                                                             <Users className="w-4 h-4" />
                                                             メンバー
@@ -239,15 +237,7 @@ export default function RoleManagementPage() {
                 </CardContent>
             </Card>
 
-            {selectedRole && orgId && (
-                <RoleMemberAssignmentModal
-                    isOpen={isAssignmentModalOpen}
-                    onClose={() => setIsAssignmentModalOpen(false)}
-                    orgId={orgId}
-                    roleId={selectedRole.id}
-                    roleName={selectedRole.name}
-                />
-            )}
+            {/* Modal removed as we navigate to separate page */}
         </div>
     );
 }

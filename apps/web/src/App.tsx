@@ -34,6 +34,7 @@ import RoleEditPage from './pages/admin/RoleEditPage';
 import AccessDeniedPage from './pages/AccessDeniedPage';
 import SystemRoleManagementPage from './pages/system/SystemRoleManagementPage';
 import SystemPermissionManagementPage from './pages/system/SystemPermissionManagementPage';
+import RoleMembersPage from './pages/admin/RoleMembersPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -111,6 +112,7 @@ function App() {
                     <Route path="/admin/:orgId/dashboard" element={<DashboardPage />} />
                     <Route path="/admin/:orgId/roles" element={<RoleManagementPage />} />
                     <Route path="/admin/:orgId/roles/:roleId" element={<RoleEditPage />} />
+                    <Route path="/admin/:orgId/roles/:roleId/members" element={<RoleMembersPage />} />
                   </Route>
 
                 </Route>
@@ -125,6 +127,7 @@ function App() {
                     <Route path="/system/roles" element={<SystemRoleManagementPage />} />
                     <Route path="/system/roles/new" element={<RoleEditPage />} />
                     <Route path="/system/roles/:roleId" element={<RoleEditPage />} />
+                    <Route path="/system/roles/:roleId/members" element={<RoleMembersPage />} />
                     <Route path="/system/permissions" element={<SystemPermissionManagementPage />} />
                   </Route>
                 </Route>

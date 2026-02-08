@@ -71,9 +71,9 @@ export const listAllRoles = async (req: Request, res: Response, next: NextFuncti
     try {
         const { organizationId } = req.query;
 
-        const whereClause: any = {};
+        const whereClause: Record<string, any> = {};
         if (organizationId && organizationId !== 'null' && organizationId !== 'common') { // Fixed condition
-            whereClause.organizationId = organizationId as string;
+            whereClause.organizationId = organizationId as string; // I will check the file content after the previous tool call.
         } else if (organizationId === 'null' || organizationId === 'common') {
             whereClause.organizationId = null;
         }
@@ -84,6 +84,9 @@ export const listAllRoles = async (req: Request, res: Response, next: NextFuncti
                 organization: { select: { name: true } },
                 permissions: {
                     include: { permission: true }
+                },
+                _count: {
+                    select: { userRoles: true }
                 }
             },
             orderBy: [
@@ -99,7 +102,8 @@ export const listAllRoles = async (req: Request, res: Response, next: NextFuncti
             isSystemRole: role.isSystemRole,
             organizationId: role.organizationId,
             organizationName: role.organization?.name || '共通ロール',
-            permissions: role.permissions.map(rp => rp.permission.code)
+            permissions: role.permissions.map(rp => rp.permission.code),
+            memberCount: role._count.userRoles
         }));
 
         res.json({ success: true, data: formatted });
@@ -276,6 +280,122 @@ export const updatePermission = async (req: Request, res: Response, next: NextFu
         });
 
         res.json({ success: true, data: updated });
+    } catch (error) {
+        next(error);
+    }
+};
+/**
+ * List all users for system admin
+ */
+export const listUsersSystem = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const users = await prisma.user.findMany({
+            select: { id: true, name: true, email: true, createdAt: true },
+            orderBy: { createdAt: 'desc' }
+        });
+        res.json({ success: true, data: users });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * List members of a role (System Admin context)
+ * GET /api/v1/admin/roles/:roleId/members
+ */
+export const listRoleMembersSystem = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { roleId } = req.params;
+
+        const roleMembers = await prisma.userOrganizationRole.findMany({
+            where: { roleId },
+            include: {
+                userOrganization: {
+                    include: {
+                        user: {
+                            select: { id: true, name: true, email: true }
+                        }
+                    }
+                }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+
+        const formatted = roleMembers.map(rm => ({
+            id: rm.userOrganization.user.id,
+            name: rm.userOrganization.user.name,
+            email: rm.userOrganization.user.email,
+            assignedAt: rm.createdAt
+        }));
+
+        res.json({ success: true, data: formatted });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * Assign a member to a role (System Admin context)
+ * POST /api/v1/admin/roles/:roleId/members
+ */
+export const addRoleMemberSystem = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { roleId } = req.params;
+        const { userId } = req.body;
+
+        if (!userId) {
+            res.status(400).json({ success: false, error: { message: 'ユーザーIDは必須です' } });
+            return;
+        }
+
+        const role = await prisma.serviceRole.findUnique({ where: { id: roleId } });
+        if (!role) {
+            res.status(404).json({ success: false, error: { message: 'ロールが見つかりません' } });
+            return;
+        }
+
+        // For system roles, we need to know WHICH organization this assignment is for.
+        // If it's a common role, it still needs to be linked to an organization record in userOrganizationRole.
+        // Wait, if system admin is assigning, they might need to specify organizationId too?
+        // Let's check how many organizations the user belongs to.
+        const userOrgs = await prisma.userOrganization.findMany({ where: { userId } });
+
+        if (userOrgs.length === 0) {
+            res.status(400).json({ success: false, error: { message: 'このユーザーはどの組織にも所属していません' } });
+            return;
+        }
+
+        // If organizationId is not provided, use the role's organizationId. 
+        // If role's organizationId is null (common role), use the first organization the user belongs to.
+        const targetOrgId = role.organizationId || userOrgs[0].organizationId;
+
+        await prisma.userOrganizationRole.upsert({
+            where: {
+                userId_organizationId_roleId: { userId, organizationId: targetOrgId, roleId }
+            },
+            update: {},
+            create: { userId, organizationId: targetOrgId, roleId }
+        });
+
+        res.json({ success: true });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * Remove a member from a role (System Admin context)
+ * DELETE /api/v1/admin/roles/:roleId/members/:userId
+ */
+export const removeRoleMemberSystem = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { roleId, userId } = req.params;
+
+        await prisma.userOrganizationRole.deleteMany({
+            where: { userId, roleId }
+        });
+
+        res.json({ success: true });
     } catch (error) {
         next(error);
     }

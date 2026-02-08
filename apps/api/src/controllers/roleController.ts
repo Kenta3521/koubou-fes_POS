@@ -38,6 +38,9 @@ export async function listRoles(req: Request, res: Response): Promise<void> {
             include: {
                 permissions: {
                     include: { permission: true }
+                },
+                _count: {
+                    select: { userRoles: true }
                 }
             },
             orderBy: [
@@ -53,7 +56,8 @@ export async function listRoles(req: Request, res: Response): Promise<void> {
             description: role.description,
             isSystemRole: role.isSystemRole, // Use DB field
             organizationId: role.organizationId,
-            permissions: role.permissions.map(rp => rp.permission.code)
+            permissions: role.permissions.map(rp => rp.permission.code),
+            memberCount: role._count.userRoles
         }));
 
         res.status(200).json({ success: true, data: formattedRoles });

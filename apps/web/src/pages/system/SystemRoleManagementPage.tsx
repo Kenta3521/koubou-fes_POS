@@ -20,7 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import { api } from '@/lib/api';
-import { Shield, Settings2, Plus, Trash2, Building2 } from 'lucide-react';
+import { Shield, Settings2, Plus, Trash2, Building2, Users } from 'lucide-react';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -42,6 +42,7 @@ interface RoleRecord {
     organizationId: string | null;
     organizationName: string;
     permissions: string[];
+    memberCount: number;
 }
 
 export default function SystemRoleManagementPage() {
@@ -101,17 +102,18 @@ export default function SystemRoleManagementPage() {
                     {showOrg && <TableHead>所属組織</TableHead>}
                     <TableHead>説明</TableHead>
                     <TableHead className="w-[100px]">権限数</TableHead>
+                    <TableHead className="w-[100px]">メンバー数</TableHead>
                     <TableHead className="text-right">操作</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
                 {isLoading ? (
                     <TableRow>
-                        <TableCell colSpan={showOrg ? 5 : 4} className="text-center py-8">読み込み中...</TableCell>
+                        <TableCell colSpan={showOrg ? 6 : 5} className="text-center py-8">読み込み中...</TableCell>
                     </TableRow>
                 ) : roles.length === 0 ? (
                     <TableRow>
-                        <TableCell colSpan={showOrg ? 5 : 4} className="text-center py-8 text-muted-foreground">ロールが見つかりません</TableCell>
+                        <TableCell colSpan={showOrg ? 6 : 5} className="text-center py-8 text-muted-foreground">ロールが見つかりません</TableCell>
                     </TableRow>
                 ) : (
                     roles.map((role) => (
@@ -138,8 +140,20 @@ export default function SystemRoleManagementPage() {
                             <TableCell>
                                 <Badge variant="outline">{role.permissions.length}</Badge>
                             </TableCell>
+                            <TableCell>
+                                <Badge variant="secondary">{role.memberCount}</Badge>
+                            </TableCell>
                             <TableCell className="text-right">
                                 <div className="flex justify-end gap-2">
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="flex items-center gap-2"
+                                        onClick={() => navigate(role.organizationId ? `/admin/${role.organizationId}/roles/${role.id}/members` : `/system/roles/${role.id}/members`)}
+                                    >
+                                        <Users className="w-4 h-4" />
+                                        メンバー
+                                    </Button>
                                     <Button
                                         size="sm"
                                         variant="outline"
