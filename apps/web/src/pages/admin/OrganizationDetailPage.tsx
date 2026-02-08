@@ -14,12 +14,12 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { ArrowLeft, RefreshCw, Save, Trash2 } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Save, Trash2, UserPlus } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useToast } from '@/components/ui/use-toast';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
-import { Role } from '@koubou-fes-pos/shared';
 import { Badge } from '@/components/ui/badge';
+import { RoleMemberAssignmentModal } from '@/components/admin/RoleMemberAssignmentModal';
 
 interface Organization {
     id: string;
@@ -33,10 +33,10 @@ interface Member {
     userId: string;
     name: string;
     email: string;
-    role: Role; // Legacy enum
-    roleId: string | null;
-    serviceRoleName: string | null;
-    isSystemRole: boolean;
+    roles: Array<{
+        name: string;
+        isSystemRole: boolean;
+    }>;
     joinedAt: string;
 }
 
@@ -59,6 +59,7 @@ export default function OrganizationDetailPage() {
     const [statusConfirmOpen, setStatusConfirmOpen] = useState(false);
     const [deleteMemberConfirmOpen, setDeleteMemberConfirmOpen] = useState(false);
     const [targetMember, setTargetMember] = useState<Member | null>(null);
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
     useEffect(() => {
         if (orgId) {
@@ -95,10 +96,10 @@ export default function OrganizationDetailPage() {
                 userId: m.userId,
                 name: m.user.name,
                 email: m.user.email,
-                role: m.role,
-                roleId: m.roleId,
-                serviceRoleName: m.serviceRole?.name || null,
-                isSystemRole: m.serviceRole?.isSystemRole || false,
+                roles: m.roles.map((ur: any) => ({
+                    name: ur.role.name,
+                    isSystemRole: ur.role.isSystemRole
+                })),
                 joinedAt: m.user.createdAt
             })));
         } catch (error) {
@@ -291,9 +292,14 @@ export default function OrganizationDetailPage() {
 
                 <TabsContent value="members">
                     <Card>
-                        <CardHeader>
-                            <CardTitle>メンバー管理</CardTitle>
-                            <CardDescription>現在所属しているメンバーとその権限を管理します。</CardDescription>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                            <div>
+                                <CardTitle>メンバー管理</CardTitle>
+                                <CardDescription>現在所属しているメンバーとその権限を管理します。</CardDescription>
+                            </div>
+                            <Button onClick={() => setIsAddModalOpen(true)}>
+                                <UserPlus className="mr-2 h-4 w-4" /> メンバー追加
+                            </Button>
                         </CardHeader>
                         <CardContent>
                             <Table>
@@ -311,14 +317,19 @@ export default function OrganizationDetailPage() {
                                             <TableCell className="font-medium">{member.name}</TableCell>
                                             <TableCell>{member.email}</TableCell>
                                             <TableCell>
-                                                {member.role === Role.TMP ? (
-                                                    <Badge variant="outline" className="text-muted-foreground">承諾待ち</Badge>
-                                                ) : (
-                                                    <div className="flex items-center gap-2">
-                                                        {member.serviceRoleName || member.role}
-                                                        {member.isSystemRole && <Badge variant="secondary" className="text-[10px] h-4 px-1">共通</Badge>}
-                                                    </div>
-                                                )}
+                                                <div className="flex flex-wrap gap-1">
+                                                    {member.roles.map((role, idx) => (
+                                                        <div key={idx} className="flex items-center gap-1">
+                                                            <Badge variant="outline" className="font-normal">
+                                                                {role.name}
+                                                                {role.isSystemRole && <Badge variant="secondary" className="ml-1 text-[10px] h-3 px-1">共通</Badge>}
+                                                            </Badge>
+                                                        </div>
+                                                    ))}
+                                                    {member.roles.length === 0 && (
+                                                        <span className="text-xs text-muted-foreground italic">ロールなし</span>
+                                                    )}
+                                                </div>
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <Button
@@ -364,6 +375,15 @@ export default function OrganizationDetailPage() {
                 confirmText="削除する"
                 onConfirm={confirmDeleteMember}
                 variant="destructive"
+            />
+            <RoleMemberAssignmentModal
+                isOpen={isAddModalOpen}
+                onClose={() => setIsAddModalOpen(false)}
+                orgId={orgId || ''}
+                roleId=""
+                roleName="一般メンバー"
+                onSuccess={fetchMembers}
+                isAddOnly={true}
             />
         </div>
     );

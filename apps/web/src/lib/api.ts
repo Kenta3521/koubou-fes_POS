@@ -31,15 +31,52 @@ api.interceptors.request.use((config) => {
     return config;
 });
 
+
+// スキップフラグ用の内部型定義
+declare module 'axios' {
+    export interface AxiosRequestConfig {
+        _skipErrorToast?: boolean;
+    }
+}
+
+import { toast } from '@/hooks/use-toast';
+
+// ... (existing code)
+
 // レスポンスインターセプター
 api.interceptors.response.use(
     (response) => response,
     (error) => {
+        // スキップフラグが立っている場合は何もしない
+        if (error.config?._skipErrorToast) {
+            return Promise.reject(error);
+        }
+
         // 403 Forbidden の場合にアクセス拒否ページへ遷移
         if (error.response?.status === 403) {
             console.warn('Access denied (403). Redirecting to /access-denied');
             window.location.href = '/access-denied';
+            return Promise.reject(error);
         }
+
+        // 401 Unauthorized の場合にログイン画面へ遷移 (必要に応じて)
+        if (error.response?.status === 401) {
+            console.warn('Unauthorized (401).');
+            // ここでログアウト処理や遷移を入れることも可能
+        }
+
+        // サーバーからのエラーメッセージを取得
+        const message = error.response?.data?.error?.message ||
+            error.response?.data?.message ||
+            '予期せぬエラーが発生しました';
+
+        // それ以外はトースト表示
+        toast({
+            title: 'エラー',
+            description: message,
+            variant: 'destructive',
+        });
+
         return Promise.reject(error);
     }
 );

@@ -31,7 +31,6 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api';
 import { Users, UserMinus, Lock } from 'lucide-react';
-import { useAuthStore } from '@/stores/authStore';
 import { PermissionOverrideModal } from '@/components/admin/PermissionOverrideModal';
 import { usePermission } from '@/hooks/usePermission';
 
@@ -39,29 +38,17 @@ import { usePermission } from '@/hooks/usePermission';
 interface ExtendedMember {
     userId: string;
     organizationId: string;
+    name: string;
+    email: string;
+    status: string;
     roles: {
-        role: ServiceRole;
+        name: string;
+        isSystemRole: boolean;
+        id?: string;
     }[];
     permissions: string[] | null;
-    user: {
-        id: string;
-        name: string;
-        email: string;
-        status: string;
-    };
 }
 
-interface ServiceRole {
-    id: string;
-    name: string;
-    description?: string;
-    isSystemRole: boolean;
-    permissions: {
-        permission: {
-            code: string;
-        };
-    }[];
-}
 
 export default function StaffManagementPage() {
     const { orgId } = useParams<{ orgId: string }>();
@@ -84,18 +71,26 @@ export default function StaffManagementPage() {
             const membersRes = await api.get(`/organizations/${orgId}/members`);
 
             if (membersRes.data.success) {
-                setMembers(membersRes.data.data);
+                setMembers(membersRes.data.data.map((m: any) => ({
+                    userId: m.userId,
+                    organizationId: m.organizationId,
+                    name: m.user.name,
+                    email: m.user.email,
+                    status: m.user.status,
+                    roles: m.roles?.map((ur: any) => ({
+                        id: ur.role?.id,
+                        name: ur.role?.name || '不明なロール',
+                        isSystemRole: ur.role?.isSystemRole || false
+                    })) || [],
+                    permissions: m.permissions
+                })));
             }
         } catch (error) {
-            toast({
-                title: 'データ取得失敗',
-                description: 'データの取得に失敗しました',
-                variant: 'destructive',
-            });
+            // エラーはグローバルインターセプターで処理
         } finally {
             setIsLoading(false);
         }
-    }, [orgId, toast]);
+    }, [orgId]);
 
     useEffect(() => {
         fetchData();
@@ -109,13 +104,7 @@ export default function StaffManagementPage() {
                 fetchData();
             }
         } catch (error) {
-            const message = (error as { response?: { data?: { error?: { message?: string } } } })
-                .response?.data?.error?.message || 'メンバーの削除に失敗しました';
-            toast({
-                title: '削除失敗',
-                description: message,
-                variant: 'destructive',
-            });
+            // エラーはグローバルインターセプターで処理
         }
     };
 
@@ -129,11 +118,7 @@ export default function StaffManagementPage() {
                 fetchData();
             }
         } catch (error) {
-            toast({
-                title: '保存失敗',
-                description: '権限設定の更新に失敗しました',
-                variant: 'destructive',
-            });
+            // エラーはグローバルインターセプターで処理
         }
     };
 
@@ -143,24 +128,17 @@ export default function StaffManagementPage() {
     // };
 
     const getRoleNames = (member: ExtendedMember) => {
-        return member.roles.map(ur => ur.role.name).join(', ');
+        return member.roles.map(r => r.name).join(', ');
     };
 
-    const getRolePermissions = (member: ExtendedMember): string[] => {
-        const allPerms = new Set<string>();
-        member.roles.forEach(ur => {
-            ur.role.permissions.forEach(rp => allPerms.add(rp.permission.code));
-        });
-        return Array.from(allPerms);
-    };
 
     // Helper for role badge (Global/Custom)
     const renderRoleBadges = (member: ExtendedMember) => {
         return (
             <div className="flex flex-wrap gap-2 items-center">
-                {member.roles.map(ur => (
-                    <Badge key={ur.role.id} variant={ur.role.isSystemRole ? "default" : "outline"} className={ur.role.isSystemRole ? "bg-slate-700" : ""}>
-                        {ur.role.name}
+                {member.roles.map((role, idx) => (
+                    <Badge key={role.id || idx} variant={role.isSystemRole ? "default" : "outline"} className={role.isSystemRole ? "bg-slate-700" : ""}>
+                        {role.name}
                     </Badge>
                 ))}
                 {member.permissions && (
@@ -172,7 +150,6 @@ export default function StaffManagementPage() {
         );
     };
 
-    // const isSystemAdmin = currentUser?.isSystemAdmin || false;
 
     return (
         <div className="container mx-auto py-6 space-y-8">
@@ -183,8 +160,8 @@ export default function StaffManagementPage() {
                 </h1>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card className="md:col-span-2">
+            <div className="grid grid-cols-1 gap-6">
+                <Card className="w-full">
                     <CardHeader>
                         <CardTitle>メンバー一覧</CardTitle>
                         <CardDescription>
@@ -213,12 +190,12 @@ export default function StaffManagementPage() {
                                 ) : (
                                     members.map((member) => (
                                         <TableRow key={member.userId}>
-                                            <TableCell className="font-medium">{member.user.name}</TableCell>
-                                            <TableCell>{member.user.email}</TableCell>
+                                            <TableCell className="font-medium">{member.name}</TableCell>
+                                            <TableCell>{member.email}</TableCell>
                                             <TableCell>{renderRoleBadges(member)}</TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex justify-end gap-2 items-center">
-                                                    {member.user.status === 'PENDING' ? (
+                                                    {member.status === 'PENDING' ? (
                                                         can('assign', 'role') && (
                                                             <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                                                 <Lock className="w-3 h-3" />
@@ -241,7 +218,7 @@ export default function StaffManagementPage() {
                                                                 <AlertDialogHeader>
                                                                     <AlertDialogTitle>メンバーの削除</AlertDialogTitle>
                                                                     <AlertDialogDescription>
-                                                                        {member.user.name} を団体から削除しますか？この操作は取り消せません。
+                                                                        {member.name} を団体から削除しますか？この操作は取り消せません。
                                                                     </AlertDialogDescription>
                                                                 </AlertDialogHeader>
                                                                 <AlertDialogFooter>
@@ -274,10 +251,10 @@ export default function StaffManagementPage() {
                         setSelectedMember(null);
                     }}
                     memberId={selectedMember.userId}
-                    memberName={selectedMember.user.name}
+                    memberName={selectedMember.name}
                     roleName={getRoleNames(selectedMember)}
                     currentOverride={selectedMember.permissions}
-                    rolePermissions={getRolePermissions(selectedMember)}
+                    rolePermissions={[]} // We don't need this complex calculation here for now
                     onSave={handlePermissionSave}
                 />
             )}

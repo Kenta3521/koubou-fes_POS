@@ -81,7 +81,7 @@ export function useProducts(filters?: ProductFilters) {
             return fetchProducts(activeOrganizationId, token, filters);
         },
         enabled: !!activeOrganizationId && !!token,
-        staleTime: 1 * 60 * 1000, // 1分間キャッシュ（在庫変動を考慮して短め）
+        staleTime: 0, // 在庫変動を考慮して、常に最新情報を取得するように（キャッシュからではなく必ずフェッチ）
     });
 }
 

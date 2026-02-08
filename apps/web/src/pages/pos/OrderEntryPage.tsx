@@ -6,11 +6,10 @@
  * - PC: 右側サイドバーカート
  */
 
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePermission } from '@/hooks/usePermission';
 import { useToast } from '@/hooks/use-toast';
-import { useEffect } from 'react';
 import { CategoryTabs } from '@/components/pos/CategoryTabs';
 import { ProductGrid } from '@/components/pos/ProductGrid';
 import { CartPanel } from '@/components/pos/CartPanel';
@@ -44,8 +43,10 @@ export default function OrderEntryPage() {
 
     // APIデータ取得
     const { data: categories = [], isLoading: categoriesLoading } = useCategories();
-    const { data: products = [], isLoading: productsLoading } = useProducts();
+    const { data: products = [], isLoading: productsLoading, refetch: refetchProducts } = useProducts();
     const { data: autoDiscounts = [] } = useAutoDiscounts();
+
+    const [isChecking, setIsChecking] = useState(false);
 
     // カートストア
     const {
@@ -83,7 +84,7 @@ export default function OrderEntryPage() {
                 if (d.targetType === 'SPECIFIC_PROD' && d.targetProductId === product.id) {
                     return true;
                 }
-                if (d.targetType === 'CATEGORY' && d.targetCategoryId === product.categoryId) {
+                if (d.targetType === 'CATEGORY' && (d as any).targetCategoryId === product.categoryId) {
                     return true;
                 }
                 return false;
@@ -138,20 +139,36 @@ export default function OrderEntryPage() {
     };
 
     // 会計へ進む
-    const handleCheckout = () => {
-        // 在庫チェック
-        for (const item of cartItems) {
-            const product = products.find(p => p.id === item.productId);
-            if (product && item.quantity > product.stock) {
-                toast({
-                    title: '在庫不足',
-                    description: `${product.name} の在庫が不足しています（現在の在庫: ${product.stock}）`,
-                    variant: 'destructive'
-                });
+    const handleCheckout = async () => {
+        setIsChecking(true);
+        try {
+            // 最新の在庫情報を取得
+            const { data: latestProducts } = await refetchProducts();
+            const currentProducts = latestProducts || products;
+
+            // 在庫チェック
+            const outOfStockItems: string[] = [];
+            for (const item of cartItems) {
+                const product = currentProducts.find(p => p.id === item.productId);
+                if (product && item.quantity > product.stock) {
+                    outOfStockItems.push(item.productId);
+                    toast({
+                        title: '在庫不足による注文修正',
+                        description: `${product.name} の在庫が不足しているため、カートから削除しました（現在の在庫: ${product.stock}）`,
+                        variant: 'destructive'
+                    });
+                }
+            }
+
+            if (outOfStockItems.length > 0) {
+                outOfStockItems.forEach(id => removeItem(id));
                 return;
             }
+
+            navigate('/pos/confirm');
+        } finally {
+            setIsChecking(false);
         }
-        navigate('/pos/confirm');
     };
 
     return (
@@ -211,6 +228,16 @@ export default function OrderEntryPage() {
                         onClearCart={handleClearCart}
                         onCheckout={handleCheckout}
                     />
+                </div>
+            )}
+
+            {/* ローディングオーバーレイ */}
+            {isChecking && (
+                <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[100] flex items-center justify-center">
+                    <div className="bg-white p-4 rounded-lg shadow-lg flex items-center gap-3">
+                        <div className="animate-spin rounded-full h-5 w-5 border-2 border-orange-500 border-t-transparent"></div>
+                        <span className="font-medium">在庫を確認中...</span>
+                    </div>
                 </div>
             )}
         </div>

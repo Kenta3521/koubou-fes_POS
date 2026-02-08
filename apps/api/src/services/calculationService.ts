@@ -44,6 +44,10 @@ export const calculateOrder = async (
                 if (!product.isActive) {
                     throw new Error(`PRODUCT_NOT_AVAILABLE: ${product.name} (販売停止中)`);
                 }
+                // 在庫チェック (P2-011強化)
+                if (product.stock < item.quantity) {
+                    throw new Error(`INSUFFICIENT_STOCK: ${product.name} (現在の在庫: ${product.stock})`);
+                }
             }
         }
     }

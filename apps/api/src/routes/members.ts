@@ -1,8 +1,8 @@
 
 import { Router } from 'express';
-import { authenticate } from '../middlewares/auth.js';
+import { authenticate, requireSystemAdmin } from '../middlewares/auth.js';
 import { checkPermission } from '../middlewares/permission.js';
-import { getMembers, updateMember, deleteMember } from '../controllers/memberController.js';
+import { getMembers, updateMember, deleteMember, addMember } from '../controllers/memberController.js';
 
 const router: Router = Router({ mergeParams: true });
 
@@ -13,6 +13,12 @@ router.use(authenticate);
  * メンバー一覧取得
  */
 router.get('/', checkPermission('read', 'member'), getMembers);
+
+/**
+ * POST /api/v1/organizations/:orgId/members
+ * メンバー追加 (システム管理者専用)
+ */
+router.post('/', requireSystemAdmin, addMember);
 
 /**
  * PATCH /api/v1/organizations/:orgId/members/:userId

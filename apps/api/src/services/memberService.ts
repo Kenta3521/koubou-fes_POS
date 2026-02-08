@@ -149,3 +149,53 @@ export const removeMember = async (organizationId: string, userId: string) => {
         }
     });
 };
+
+/**
+ * 既存ユーザーを団体に追加（システム管理者用）
+ */
+export const addMember = async (organizationId: string, userId: string) => {
+    // すでに所属しているかチェック
+    const existing = await prisma.userOrganization.findUnique({
+        where: {
+            userId_organizationId: {
+                userId,
+                organizationId
+            }
+        }
+    });
+
+    if (existing) {
+        throw new Error('ALREADY_MEMBER');
+    }
+
+    // デフォルトロール（スタッフ）を探す
+    const defaultRole = await prisma.serviceRole.findFirst({
+        where: {
+            organizationId: null,
+            name: { in: ['スタッフ', 'Staff', 'STAFF'] }
+        }
+    });
+
+    return prisma.$transaction(async (tx) => {
+        // 所属作成
+        const membership = await tx.userOrganization.create({
+            data: {
+                userId,
+                organizationId
+            }
+        });
+
+        // デフォルトロール割り当て
+        if (defaultRole) {
+            await tx.userOrganizationRole.create({
+                data: {
+                    userId,
+                    organizationId,
+                    roleId: defaultRole.id
+                }
+            });
+        }
+
+        return membership;
+    });
+};

@@ -59,15 +59,11 @@ export default function SystemRoleManagementPage() {
                 setRoles(res.data.data);
             }
         } catch (error) {
-            toast({
-                title: 'データ取得失敗',
-                description: 'ロール一覧の取得に失敗しました',
-                variant: 'destructive',
-            });
+            // エラーはグローバルインターセプターで処理
         } finally {
             setIsLoading(false);
         }
-    }, [toast]);
+    }, []);
 
     useEffect(() => {
         fetchRoles();
@@ -81,13 +77,7 @@ export default function SystemRoleManagementPage() {
                 fetchRoles();
             }
         } catch (error) {
-            const message = (error as { response?: { data?: { error?: { message?: string } } } })
-                .response?.data?.error?.message || 'ロールの削除に失敗しました';
-            toast({
-                title: '削除失敗',
-                description: message,
-                variant: 'destructive',
-            });
+            // エラーはグローバルインターセプターで処理
         }
     };
 

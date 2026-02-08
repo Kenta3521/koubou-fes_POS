@@ -99,7 +99,7 @@ export function TransactionDetailModal({
         switch (status) {
             case 'COMPLETED':
                 return <Badge variant="default" className="bg-green-600">完了</Badge>;
-            case 'CANCELED':
+            case 'CANCELLED':
                 return <Badge variant="destructive">キャンセル</Badge>;
             case 'PENDING':
                 return <Badge variant="outline" className="text-amber-500 border-amber-500">保留中</Badge>;

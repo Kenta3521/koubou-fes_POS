@@ -32,6 +32,7 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
     SidebarRail,
+    useSidebar,
 } from '@/components/ui/sidebar';
 import {
     DropdownMenu,
@@ -42,7 +43,7 @@ import {
     DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Role } from '@koubou-fes-pos/shared';
 import { Badge } from '@/components/ui/badge';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
@@ -51,6 +52,19 @@ export function AppSidebar() {
     const { user, logout, activeOrganizationId, setActiveOrganization } = useAuthStore();
     const { setOrganization: setCartOrganization } = useCartStore();
     const location = useLocation();
+    const navigate = useNavigate();
+    const { isMobile, setOpenMobile } = useSidebar();
+
+    const navigateAndClose = (to: string, useHref = false) => {
+        if (isMobile) {
+            setOpenMobile(false);
+        }
+        if (useHref) {
+            window.location.href = to;
+        } else {
+            navigate(to);
+        }
+    };
 
     const [orgSwitchDialogOpen, setOrgSwitchDialogOpen] = React.useState(false);
     const [targetOrgId, setTargetOrgId] = React.useState<string | null>(null);
@@ -196,7 +210,7 @@ export function AppSidebar() {
                                 <SidebarMenu>
                                     <SidebarMenuItem>
                                         <SidebarMenuButton
-                                            onClick={() => window.location.href = '/'}
+                                            onClick={() => navigateAndClose('/')}
                                             isActive={location.pathname === '/'}
                                         >
                                             <LayoutDashboard />
@@ -206,7 +220,7 @@ export function AppSidebar() {
                                     <SidebarMenuItem>
                                         <PermissionGuard permission="transaction:create" fallback={null}>
                                             <SidebarMenuButton
-                                                onClick={() => window.location.href = '/pos'}
+                                                onClick={() => navigateAndClose('/pos')}
                                                 isActive={location.pathname.startsWith('/pos')}
                                             >
                                                 <ShoppingBasket />
@@ -231,9 +245,9 @@ export function AppSidebar() {
                                                 onClick={() => {
                                                     const targetId = activeOrganizationId || user?.organizations?.[0]?.id;
                                                     if (targetId) {
-                                                        window.location.href = `/admin/${targetId}/dashboard`;
+                                                        navigateAndClose(`/admin/${targetId}/dashboard`);
                                                     } else {
-                                                        window.location.href = '/select-org';
+                                                        navigateAndClose('/select-org');
                                                     }
                                                 }}
                                                 isActive={location.pathname.includes('/dashboard')}
@@ -248,7 +262,7 @@ export function AppSidebar() {
                                             <SidebarMenuButton
                                                 onClick={() => {
                                                     const targetId = activeOrganizationId || user?.organizations?.[0]?.id;
-                                                    if (targetId) window.location.href = `/admin/${targetId}/categories`;
+                                                    if (targetId) navigateAndClose(`/admin/${targetId}/categories`);
                                                 }}
                                                 isActive={location.pathname.includes('/categories')}
                                             >
@@ -262,7 +276,7 @@ export function AppSidebar() {
                                             <SidebarMenuButton
                                                 onClick={() => {
                                                     const targetId = activeOrganizationId || user?.organizations?.[0]?.id;
-                                                    if (targetId) window.location.href = `/admin/${targetId}/products`;
+                                                    if (targetId) navigateAndClose(`/admin/${targetId}/products`);
                                                 }}
                                                 isActive={location.pathname.includes('/products')}
                                             >
@@ -276,7 +290,7 @@ export function AppSidebar() {
                                             <SidebarMenuButton
                                                 onClick={() => {
                                                     const targetId = activeOrganizationId || user?.organizations?.[0]?.id;
-                                                    if (targetId) window.location.href = `/admin/${targetId}/discounts`;
+                                                    if (targetId) navigateAndClose(`/admin/${targetId}/discounts`);
                                                 }}
                                                 isActive={location.pathname.includes('/discounts')}
                                             >
@@ -290,7 +304,7 @@ export function AppSidebar() {
                                             <SidebarMenuButton
                                                 onClick={() => {
                                                     const targetId = activeOrganizationId || user?.organizations?.[0]?.id;
-                                                    if (targetId) window.location.href = `/admin/${targetId}/transactions`;
+                                                    if (targetId) navigateAndClose(`/admin/${targetId}/transactions`);
                                                 }}
                                                 isActive={location.pathname.includes('/transactions')}
                                             >
@@ -304,7 +318,7 @@ export function AppSidebar() {
                                             <SidebarMenuButton
                                                 onClick={() => {
                                                     const targetId = activeOrganizationId || user?.organizations?.[0]?.id;
-                                                    if (targetId) window.location.href = `/admin/${targetId}/staff`;
+                                                    if (targetId) navigateAndClose(`/admin/${targetId}/staff`);
                                                 }}
                                                 isActive={location.pathname.includes('/staff')}
                                             >
@@ -318,7 +332,7 @@ export function AppSidebar() {
                                             <SidebarMenuButton
                                                 onClick={() => {
                                                     const targetId = activeOrganizationId || user?.organizations?.[0]?.id;
-                                                    if (targetId) window.location.href = `/admin/${targetId}/roles`;
+                                                    if (targetId) navigateAndClose(`/admin/${targetId}/roles`);
                                                 }}
                                                 isActive={location.pathname.startsWith(`/admin/${activeOrganizationId}/roles`)}
                                             >
@@ -340,7 +354,7 @@ export function AppSidebar() {
                                 <SidebarMenu>
                                     <SidebarMenuItem>
                                         <SidebarMenuButton
-                                            onClick={() => window.location.href = '/admin/organizations'}
+                                            onClick={() => navigateAndClose('/admin/organizations')}
                                             isActive={location.pathname === '/admin/organizations'}
                                         >
                                             <Users />
@@ -348,7 +362,7 @@ export function AppSidebar() {
                                         </SidebarMenuButton>
                                     </SidebarMenuItem>
                                     <SidebarMenuItem>
-                                        <SidebarMenuButton asChild isActive={location.pathname.startsWith('/system/roles')}>
+                                        <SidebarMenuButton asChild isActive={location.pathname.startsWith('/system/roles')} onClick={() => isMobile && setOpenMobile(false)}>
                                             <Link to="/system/roles">
                                                 <Shield className="mr-2 h-4 w-4" />
                                                 <span>ロール管理</span>
@@ -356,7 +370,7 @@ export function AppSidebar() {
                                         </SidebarMenuButton>
                                     </SidebarMenuItem>
                                     <SidebarMenuItem>
-                                        <SidebarMenuButton asChild isActive={location.pathname.startsWith('/system/permissions')}>
+                                        <SidebarMenuButton asChild isActive={location.pathname.startsWith('/system/permissions')} onClick={() => isMobile && setOpenMobile(false)}>
                                             <Link to="/system/permissions">
                                                 <Lock className="mr-2 h-4 w-4" />
                                                 <span>権限マスタ管理</span>
@@ -375,7 +389,7 @@ export function AppSidebar() {
                             <SidebarMenu>
                                 <SidebarMenuItem>
                                     <SidebarMenuButton
-                                        onClick={() => window.location.href = '/settings'}
+                                        onClick={() => navigateAndClose('/settings')}
                                         isActive={location.pathname === '/settings'}
                                     >
                                         <Settings />

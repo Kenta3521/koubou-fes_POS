@@ -39,6 +39,15 @@ export const calculate = async (req: Request, res: Response, next: NextFunction)
                 },
             });
         }
+        if (error.message?.includes('INSUFFICIENT_STOCK')) {
+            return res.status(400).json({
+                success: false,
+                error: {
+                    code: 'INSUFFICIENT_STOCK',
+                    message: error.message.replace('INSUFFICIENT_STOCK: ', ''),
+                },
+            });
+        }
         next(error);
     }
 };

@@ -43,6 +43,7 @@ interface RoleMemberAssignmentModalProps {
     roleName: string;
     initialAddMode?: boolean;
     isAddOnly?: boolean;
+    onSuccess?: () => void;
 }
 
 export function RoleMemberAssignmentModal({
@@ -52,7 +53,8 @@ export function RoleMemberAssignmentModal({
     roleId,
     roleName,
     initialAddMode = false,
-    isAddOnly = false
+    isAddOnly = false,
+    onSuccess
 }: RoleMemberAssignmentModalProps) {
     const { toast } = useToast();
     const [allMembers, setAllMembers] = useState<Member[]>([]);
@@ -67,18 +69,18 @@ export function RoleMemberAssignmentModal({
         setIsLoading(true);
         try {
             const [allRes, assignedRes] = await Promise.all([
-                orgId ? api.get(`/organizations/${orgId}/members`) : api.get(`/admin/users`),
-                orgId ? api.get(`/organizations/${orgId}/roles/${roleId}/members`) : api.get(`/admin/roles/${roleId}/members`)
+                // If roleId is empty, we are adding to the organization, so we need ALL system users to search from
+                !roleId ? api.get(`/admin/users`) : (orgId ? api.get(`/organizations/${orgId}/members`) : api.get(`/admin/users`)),
+                roleId ? (orgId ? api.get(`/organizations/${orgId}/roles/${roleId}/members`) : api.get(`/admin/roles/${roleId}/members`)) : Promise.resolve({ data: { success: true, data: [] } })
             ]);
 
             if (allRes.data.success) {
-                const members = orgId
-                    ? allRes.data.data.map((m: { userId: string; user: { name: string; email: string } }) => ({
-                        id: m.userId,
-                        name: m.user.name,
-                        email: m.user.email
-                    }))
-                    : allRes.data.data; // System users already formatted
+                // Formatting for both org members and system users
+                const members = allRes.data.data.map((m: any) => ({
+                    id: m.userId || m.id,
+                    name: m.user?.name || m.name,
+                    email: m.user?.email || m.email
+                }));
                 setAllMembers(members);
             }
 
@@ -86,15 +88,11 @@ export function RoleMemberAssignmentModal({
                 setAssignedMembers(assignedRes.data.data);
             }
         } catch (error) {
-            toast({
-                title: 'エラー',
-                description: 'データの取得に失敗しました',
-                variant: 'destructive',
-            });
+            // エラーはグローバルインターセプターで処理
         } finally {
             setIsLoading(false);
         }
-    }, [isOpen, orgId, roleId, toast]);
+    }, [isOpen, orgId, roleId]);
 
     useEffect(() => {
         if (isOpen) {
@@ -107,20 +105,18 @@ export function RoleMemberAssignmentModal({
     const handleAssign = async (userId: string) => {
         setIsActionLoading(userId);
         try {
-            const endpoint = orgId
-                ? `/organizations/${orgId}/roles/${roleId}/members`
-                : `/admin/roles/${roleId}/members`;
+            const endpoint = roleId
+                ? (orgId ? `/organizations/${orgId}/roles/${roleId}/members` : `/admin/roles/${roleId}/members`)
+                : `/organizations/${orgId}/members`;
+
             const res = await api.post(endpoint, { userId });
             if (res.data.success) {
-                toast({ title: '割当完了', description: 'ロールを割り当てました' });
+                toast({ title: roleId ? '割当完了' : '登録完了', description: roleId ? 'ロールを割り当てました' : 'メンバーを団体に追加しました' });
                 fetchData();
+                if (onSuccess) onSuccess();
             }
         } catch (error) {
-            toast({
-                title: 'エラー',
-                description: '割当に失敗しました',
-                variant: 'destructive',
-            });
+            // エラーはグローバルインターセプターで処理
         } finally {
             setIsActionLoading(null);
         }
@@ -138,12 +134,7 @@ export function RoleMemberAssignmentModal({
                 fetchData();
             }
         } catch (error) {
-            const message = (error as { response?: { data?: { error?: { message?: string } } } }).response?.data?.error?.message || '解除に失敗しました';
-            toast({
-                title: 'エラー',
-                description: message,
-                variant: 'destructive',
-            });
+            // エラーはグローバルインターセプターで処理
         } finally {
             setIsActionLoading(null);
         }

@@ -86,3 +86,51 @@ export async function deleteMember(req: Request, res: Response): Promise<void> {
         });
     }
 }
+
+/**
+ * メンバー追加 (システム管理者専用)
+ */
+export async function addMember(req: Request, res: Response): Promise<void> {
+    const { orgId } = req.params;
+    const { userId } = req.body;
+
+    if (!userId) {
+        res.status(400).json({
+            success: false,
+            error: {
+                code: 'BAD_REQUEST',
+                message: 'ユーザーIDが必要です',
+            },
+        });
+        return;
+    }
+
+    try {
+        const membership = await memberService.addMember(orgId, userId);
+        res.status(201).json({
+            success: true,
+            data: membership,
+        });
+    } catch (error: any) {
+        logger.error('Add member error:', error);
+
+        if (error.message === 'ALREADY_MEMBER') {
+            res.status(400).json({
+                success: false,
+                error: {
+                    code: 'ALREADY_MEMBER',
+                    message: 'このユーザーは既に団体に所属しています',
+                },
+            });
+            return;
+        }
+
+        res.status(500).json({
+            success: false,
+            error: {
+                code: 'INTERNAL_ERROR',
+                message: 'メンバーの追加に失敗しました',
+            },
+        });
+    }
+}
