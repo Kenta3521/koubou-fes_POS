@@ -230,6 +230,7 @@ enum DiscountTargetType {
   ORDER_TOTAL
   SPECIFIC_PROD
   CATEGORY
+  ALL_PRODUCTS
 }
 
 enum DiscountConditionType {

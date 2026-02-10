@@ -136,17 +136,34 @@ export const calculateOrder = async (
                         conditionMet = true;
                     }
                 }
-            } else if (cType === DiscountTargetType.ORDER_TOTAL) {
-                // ORDER_TOTAL trigger is handled at the end, but if it's an auto-discount 
-                // we might want it to apply to items as well if condition is order-total?
-                // For now, let's stick to item-level triggers for item-level applications.
-                // Actually, if trigger is ORDER_TOTAL, we need to know gross total.
+            } else if (cType === DiscountTargetType.ORDER_TOTAL || cType === DiscountTargetType.ALL_PRODUCTS) {
+                if (d.conditionType === DiscountConditionType.NONE) {
+                    conditionMet = true;
+                } else {
+                    // ORDER_TOTAL condition like MIN_AMOUNT is checked at the end for appliedOrderDiscount,
+                    // but for item-level automatic ALL_PRODUCTS discounts, we might need to check it here if 
+                    // the trigger is order-total.
+                    if (d.conditionType === DiscountConditionType.MIN_AMOUNT) {
+                        // Using grossTotal or current net total? Usually gross total or net total before overall discounts.
+                        // Here we don't have grossTotal yet, let's calculate a quick one.
+                        const currentGrossTotal = items.reduce((sum, i) => {
+                            const p = productMap.get(i.productId);
+                            return sum + (p ? p.price * i.quantity : 0);
+                        }, 0);
+                        conditionMet = currentGrossTotal >= d.conditionValue;
+                    } else {
+                        conditionMet = true;
+                    }
+                }
             }
 
             if (!conditionMet) return false;
 
             // --- 2. 適用対象判定 (Application Target Check) ---
             // この商品が割引の対象かチェック
+            if (d.targetType === DiscountTargetType.ALL_PRODUCTS) {
+                return true;
+            }
             if (d.targetType === DiscountTargetType.SPECIFIC_PROD && d.targetProductId === item.productId) {
                 return true;
             }
@@ -157,7 +174,7 @@ export const calculateOrder = async (
             return false;
         });
 
-        // マニュアル割引が商品/カテゴリ対象なら候補に追加
+        // マニュアル割引が商品/カテゴリ/全商品対象なら候補に追加
         if (manualDiscount) {
             let isApplicable = false;
 
@@ -192,13 +209,15 @@ export const calculateOrder = async (
                     }
                 }
             } else {
-                // ORDER_TOTAL manual trigger is usually always met or checked below
+                // ORDER_TOTAL / ALL_PRODUCTS manual trigger is usually always met or checked below
                 conditionMet = true;
             }
 
             // --- 2. 適用対象判定 (Application Target Check) ---
             if (conditionMet) {
-                if (manualDiscount.targetType === DiscountTargetType.SPECIFIC_PROD && manualDiscount.targetProductId === item.productId) {
+                if (manualDiscount.targetType === DiscountTargetType.ALL_PRODUCTS) {
+                    isApplicable = true;
+                } else if (manualDiscount.targetType === DiscountTargetType.SPECIFIC_PROD && manualDiscount.targetProductId === item.productId) {
                     isApplicable = true;
                 } else if (manualDiscount.targetType === DiscountTargetType.CATEGORY && manualDiscount.targetCategoryId === product.categoryId) {
                     isApplicable = true;
@@ -251,62 +270,74 @@ export const calculateOrder = async (
     const netTotalAfterItemDiscount = calculatedItems.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
     const totalItemDiscount = calculatedItems.reduce((sum, item) => sum + (item.discountAmount * item.quantity), 0);
 
-    // 5. 手動割引 / 全体割引の適用 (ORDER_TOTALのみ)
+    // 5. 全体割引の適用 (ORDER_TOTAL)
     let totalAmount = netTotalAfterItemDiscount;
     let appliedOrderDiscount: DiscountSummary | null = null;
     let orderDiscountValue = 0;
 
+    // 自動割引と手動割引の両方から全体割引候補を抽出
+    const orderTotalDiscounts = activeAutoDiscounts.filter(d => d.targetType === DiscountTargetType.ORDER_TOTAL);
     if (manualDiscount && manualDiscount.targetType === DiscountTargetType.ORDER_TOTAL) {
-        // 対象チェック (ORDER_TOTAL)
-        let isValid = false;
-        const cType = (manualDiscount as any).conditionTargetType || manualDiscount.targetType;
-        const cValue = manualDiscount.conditionValue;
+        orderTotalDiscounts.push(manualDiscount);
+    }
 
-        if (cType === DiscountTargetType.ORDER_TOTAL) {
-            if (manualDiscount.conditionType === DiscountConditionType.MIN_AMOUNT) {
-                isValid = netTotalAfterItemDiscount >= cValue;
-            } else {
-                isValid = true;
-            }
-        } else if (cType === DiscountTargetType.CATEGORY) {
-            const cCatId = (manualDiscount as any).conditionCategoryId;
-            const totals = categoryTotals.get(cCatId || '');
-            if (totals) {
-                if (manualDiscount.conditionType === DiscountConditionType.MIN_QUANTITY) {
-                    isValid = totals.quantity >= cValue;
-                } else if (manualDiscount.conditionType === DiscountConditionType.MIN_AMOUNT) {
-                    isValid = totals.amount >= cValue;
+    if (orderTotalDiscounts.length > 0) {
+        const applicableOrderDiscounts = orderTotalDiscounts.filter(discount => {
+            let isValid = false;
+            const cType = (discount as any).conditionTargetType || discount.targetType;
+            const cValue = discount.conditionValue;
+
+            if (cType === DiscountTargetType.ORDER_TOTAL) {
+                if (discount.conditionType === DiscountConditionType.MIN_AMOUNT) {
+                    isValid = netTotalAfterItemDiscount >= cValue;
                 } else {
                     isValid = true;
                 }
-            }
-        } else if (cType === DiscountTargetType.SPECIFIC_PROD) {
-            const cProdId = (manualDiscount as any).conditionProductId;
-            const item = items.find(i => i.productId === cProdId);
-            if (item) {
-                if (manualDiscount.conditionType === DiscountConditionType.MIN_QUANTITY) {
-                    isValid = item.quantity >= cValue;
-                } else {
-                    isValid = true;
+            } else if (cType === DiscountTargetType.CATEGORY) {
+                const cCatId = (discount as any).conditionCategoryId || (discount as any).targetCategoryId;
+                const totals = categoryTotals.get(cCatId || '');
+                if (totals) {
+                    if (discount.conditionType === DiscountConditionType.MIN_QUANTITY) {
+                        isValid = totals.quantity >= cValue;
+                    } else if (discount.conditionType === DiscountConditionType.MIN_AMOUNT) {
+                        isValid = totals.amount >= cValue;
+                    } else {
+                        isValid = true;
+                    }
+                }
+            } else if (cType === DiscountTargetType.SPECIFIC_PROD) {
+                const cProdId = (discount as any).conditionProductId || (discount as any).targetProductId;
+                const item = items.find(i => i.productId === cProdId);
+                if (item) {
+                    if (discount.conditionType === DiscountConditionType.MIN_QUANTITY) {
+                        isValid = item.quantity >= cValue;
+                    } else {
+                        isValid = true;
+                    }
                 }
             }
-        }
+            return isValid;
+        });
 
-        if (isValid) {
-            if (manualDiscount.type === DiscountType.FIXED) {
-                orderDiscountValue = manualDiscount.value;
-            } else if (manualDiscount.type === DiscountType.PERCENT) {
-                orderDiscountValue = Math.floor(netTotalAfterItemDiscount * (manualDiscount.value / 100));
+        if (applicableOrderDiscounts.length > 0) {
+            // 優先度が高いものを選択
+            applicableOrderDiscounts.sort((a, b) => b.priority - a.priority);
+            const bestOrderDiscount = applicableOrderDiscounts[0];
+
+            if (bestOrderDiscount.type === DiscountType.FIXED) {
+                orderDiscountValue = bestOrderDiscount.value;
+            } else if (bestOrderDiscount.type === DiscountType.PERCENT) {
+                orderDiscountValue = Math.floor(netTotalAfterItemDiscount * (bestOrderDiscount.value / 100));
             }
 
             if (totalAmount - orderDiscountValue < 0) orderDiscountValue = totalAmount;
             totalAmount -= orderDiscountValue;
 
             appliedOrderDiscount = {
-                id: manualDiscount.id,
-                name: manualDiscount.name,
-                type: manualDiscount.type,
-                value: manualDiscount.value
+                id: bestOrderDiscount.id,
+                name: bestOrderDiscount.name,
+                type: bestOrderDiscount.type,
+                value: bestOrderDiscount.value
             };
         }
     }

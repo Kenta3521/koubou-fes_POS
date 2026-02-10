@@ -81,6 +81,9 @@ export default function OrderEntryPage() {
 
         products.forEach(product => {
             const applicableDiscount = autoDiscounts.find(d => {
+                if (d.targetType === 'ALL_PRODUCTS') {
+                    return true;
+                }
                 if (d.targetType === 'SPECIFIC_PROD' && d.targetProductId === product.id) {
                     return true;
                 }

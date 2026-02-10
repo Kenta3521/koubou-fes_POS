@@ -43,6 +43,7 @@ export enum DiscountTargetType {
     ORDER_TOTAL = 'ORDER_TOTAL',
     SPECIFIC_PROD = 'SPECIFIC_PROD',
     CATEGORY = 'CATEGORY',
+    ALL_PRODUCTS = 'ALL_PRODUCTS',
 }
 
 export enum DiscountConditionType {

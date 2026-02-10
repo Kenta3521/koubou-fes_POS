@@ -16,6 +16,7 @@ import { Loader2, Plus, Pencil, Trash2, Tag } from 'lucide-react';
 import { Discount, Product, Category, DiscountType, DiscountTargetType } from '@koubou-fes-pos/shared';
 import { DiscountEditModal } from '@/features/admin/discount/DiscountEditModal';
 import { usePermission } from '@/hooks/usePermission';
+import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 
 export default function DiscountManagementPage() {
     const { orgId } = useParams<{ orgId: string }>();
@@ -36,6 +37,10 @@ export default function DiscountManagementPage() {
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingDiscount, setEditingDiscount] = useState<Discount | undefined>(undefined);
+
+    // 削除確認ダイアログの状態
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [discountToDelete, setDiscountToDelete] = useState<Discount | null>(null);
 
     const fetchData = useCallback(async () => {
         if (!orgId) return;
@@ -82,16 +87,22 @@ export default function DiscountManagementPage() {
         setIsModalOpen(true);
     };
 
-    const handleDelete = async (discount: Discount) => {
-        if (!confirm(`割引「${discount.name}」を削除してもよろしいですか？（完全に削除されます）`)) return;
+    const handleDeleteClick = (discount: Discount) => {
+        setDiscountToDelete(discount);
+        setIsDeleteDialogOpen(true);
+    };
+
+    const handleDeleteConfirm = async () => {
+        if (!orgId || !discountToDelete) return;
 
         try {
-            await api.delete(`/organizations/${orgId}/discounts/${discount.id}`);
+            await api.delete(`/organizations/${orgId}/discounts/${discountToDelete.id}`);
             toast({
                 title: '削除成功',
                 description: '割引を削除しました',
             });
             fetchData();
+            setDiscountToDelete(null);
         } catch (error) {
             console.error('Error deleting discount:', error);
             toast({
@@ -234,7 +245,7 @@ export default function DiscountManagementPage() {
                                             </Button>
                                         )}
                                         {can('delete', 'discount') && (
-                                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(discount)}>
+                                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteClick(discount)}>
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
                                         )}
@@ -253,6 +264,16 @@ export default function DiscountManagementPage() {
                 discount={editingDiscount}
                 products={products}
                 categories={categories}
+            />
+
+            <ConfirmDialog
+                open={isDeleteDialogOpen}
+                onOpenChange={setIsDeleteDialogOpen}
+                title="割引の削除"
+                description={`割引「${discountToDelete?.name}」を削除してもよろしいですか？（完全に削除されます）`}
+                confirmText="削除"
+                variant="destructive"
+                onConfirm={handleDeleteConfirm}
             />
         </div>
     );

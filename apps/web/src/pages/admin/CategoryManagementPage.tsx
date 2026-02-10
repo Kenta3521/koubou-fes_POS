@@ -18,6 +18,7 @@ import { Loader2, Plus, ArrowUp, ArrowDown, Pencil, Trash2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast';
 import { CategoryEditModal } from '../../components/admin/CategoryEditModal';
 import { usePermission } from '@/hooks/usePermission';
+import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 
 export default function CategoryManagementPage() {
     const { orgId } = useParams<{ orgId: string }>();
@@ -38,6 +39,10 @@ export default function CategoryManagementPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+
+    // 削除確認ダイアログの状態
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
 
     const fetchCategories = useCallback(async () => {
         if (!activeOrganizationId) return;
@@ -76,9 +81,7 @@ export default function CategoryManagementPage() {
         setIsEditModalOpen(true);
     };
 
-    const handleDelete = async (category: Category) => {
-        if (!activeOrganizationId) return;
-
+    const handleDeleteClick = (category: Category) => {
         if (category._count?.products && category._count.products > 0) {
             toast({
                 title: '削除できません',
@@ -87,13 +90,18 @@ export default function CategoryManagementPage() {
             });
             return;
         }
+        setCategoryToDelete(category);
+        setIsDeleteDialogOpen(true);
+    };
 
-        if (!confirm(`${category.name} を削除してもよろしいですか？`)) return;
+    const handleDeleteConfirm = async () => {
+        if (!activeOrganizationId || !categoryToDelete) return;
 
         try {
-            await api.delete(`/organizations/${activeOrganizationId}/categories/${category.id}`);
+            await api.delete(`/organizations/${activeOrganizationId}/categories/${categoryToDelete.id}`);
             toast({ title: 'カテゴリを削除しました' });
             fetchCategories();
+            setCategoryToDelete(null);
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (error: any) {
             toast({
@@ -220,7 +228,7 @@ export default function CategoryManagementPage() {
                                                         variant="ghost"
                                                         size="icon"
                                                         className="text-destructive hover:text-destructive"
-                                                        onClick={() => handleDelete(category)}
+                                                        onClick={() => handleDeleteClick(category)}
                                                     >
                                                         <Trash2 className="h-4 w-4" />
                                                     </Button>
@@ -240,6 +248,16 @@ export default function CategoryManagementPage() {
                 onClose={() => setIsEditModalOpen(false)}
                 onSuccess={fetchCategories}
                 category={selectedCategory}
+            />
+
+            <ConfirmDialog
+                open={isDeleteDialogOpen}
+                onOpenChange={setIsDeleteDialogOpen}
+                title="カテゴリの削除"
+                description={`カテゴリ「${categoryToDelete?.name}」を削除してもよろしいですか？`}
+                confirmText="削除"
+                variant="destructive"
+                onConfirm={handleDeleteConfirm}
             />
         </div>
     );

@@ -7,6 +7,7 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/use-toast';
 import { RefreshCw } from 'lucide-react';
 import { api } from '@/lib/api';
+import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 
 interface Organization {
     id: string;
@@ -29,6 +30,7 @@ export function EditOrganizationModal({ organization, open, onOpenChange, onSucc
     const [isLoading, setIsLoading] = useState(false);
     const [inviteCode, setInviteCode] = useState('');
     const [isRegenerating, setIsRegenerating] = useState(false);
+    const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const { toast } = useToast();
 
     useEffect(() => {
@@ -64,9 +66,12 @@ export function EditOrganizationModal({ organization, open, onOpenChange, onSucc
         }
     };
 
-    const handleRegenerateInvite = async () => {
+    const handleRegenerateInviteClick = () => {
+        setIsConfirmOpen(true);
+    };
+
+    const handleRegenerateInviteConfirm = async () => {
         if (!organization) return;
-        if (!window.confirm('招待コードを再発行しますか？ 古いコードは無効になります。')) return;
 
         setIsRegenerating(true);
         try {
@@ -136,7 +141,7 @@ export function EditOrganizationModal({ organization, open, onOpenChange, onSucc
                                     type="button"
                                     variant="outline"
                                     size="sm"
-                                    onClick={handleRegenerateInvite}
+                                    onClick={handleRegenerateInviteClick}
                                     disabled={isRegenerating || isLoading}
                                 >
                                     <RefreshCw className={`mr-2 h-4 w-4 ${isRegenerating ? 'animate-spin' : ''}`} />
@@ -154,6 +159,15 @@ export function EditOrganizationModal({ organization, open, onOpenChange, onSucc
                         </Button>
                     </DialogFooter>
                 </form>
+
+                <ConfirmDialog
+                    open={isConfirmOpen}
+                    onOpenChange={setIsConfirmOpen}
+                    title="招待コードの再発行"
+                    description="招待コードを再発行しますか？ 古いコードは無効になります。"
+                    confirmText="再発行"
+                    onConfirm={handleRegenerateInviteConfirm}
+                />
             </DialogContent>
         </Dialog>
     );

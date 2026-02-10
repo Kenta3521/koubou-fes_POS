@@ -247,6 +247,7 @@ export function DiscountEditModal({
                                             </SelectTrigger>
                                             <SelectContent>
                                                 <SelectItem value={DiscountTargetType.ORDER_TOTAL}>注文合計</SelectItem>
+                                                <SelectItem value={DiscountTargetType.ALL_PRODUCTS}>全商品</SelectItem>
                                                 <SelectItem value={DiscountTargetType.SPECIFIC_PROD}>特定商品</SelectItem>
                                                 <SelectItem value={DiscountTargetType.CATEGORY}>カテゴリ全体</SelectItem>
                                             </SelectContent>

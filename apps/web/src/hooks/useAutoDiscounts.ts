@@ -7,7 +7,7 @@ export interface AutoDiscount {
     name: string;
     type: 'PERCENT' | 'FIXED';
     value: number;
-    targetType: 'SPECIFIC_PROD' | 'CATEGORY' | 'ORDER_TOTAL';
+    targetType: 'SPECIFIC_PROD' | 'CATEGORY' | 'ORDER_TOTAL' | 'ALL_PRODUCTS';
     targetProductId: string | null;
     targetCategoryId: string | null;
     triggerType: 'AUTO' | 'MANUAL';
@@ -39,13 +39,13 @@ export function useAutoDiscounts() {
                     d.isActive &&
                     d.triggerType === 'AUTO' &&
                     d.conditionType === 'NONE' &&
-                    (d.targetType === 'SPECIFIC_PROD' || d.targetType === 'CATEGORY')
+                    (d.targetType === 'SPECIFIC_PROD' || d.targetType === 'CATEGORY' || d.targetType === 'ALL_PRODUCTS')
                 );
             });
 
             return autoDiscounts;
         },
         enabled: !!activeOrganizationId,
-        staleTime: 5 * 60 * 1000, // 5 minutes
+        staleTime: 0,
     });
 }

@@ -10,6 +10,8 @@ import { useCartStore } from '@/stores/cartStore';
 import { CalculationResult } from '@koubou-fes-pos/shared';
 import { cn } from '@/lib/utils';
 import { socket } from '@/lib/socket';
+import { useToast } from '@/hooks/use-toast';
+import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 
 interface PayPayResponse {
     qrCodeUrl: string;
@@ -23,6 +25,7 @@ const PayPayPaymentPage: React.FC = () => {
     const location = useLocation();
     const { activeOrganizationId } = useAuthStore();
     const { clearCart } = useCartStore();
+    const { toast } = useToast();
 
     // Get calculation from location state (from OrderConfirmationPage)
     const calculation = location.state?.calculation as CalculationResult;
@@ -34,6 +37,9 @@ const PayPayPaymentPage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [timeLeft, setTimeLeft] = useState(300); // 5 minutes
     const [paymentStatus, setPaymentStatus] = useState<'waiting' | 'success' | 'expired'>('waiting');
+
+    // キャンセル確認ダイアログの状態
+    const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
 
     // Lock to prevent duplicate initialization (React StrictMode mounts twice)
     const initialized = React.useRef(false);
@@ -65,19 +71,25 @@ const PayPayPaymentPage: React.FC = () => {
         };
     }, []);
 
-    const handleCancel = useCallback(async () => {
-        if (window.confirm('決済をキャンセルしてもよろしいですか？')) {
-            if (transaction) {
-                try {
-                    await api.post(`/organizations/${activeOrganizationId}/transactions/${transaction.id}/cancel`);
-                } catch (err) {
-                    console.error('Cancel failed:', err);
-                }
-            }
-            clearCart();
+    const handleCancelClick = () => {
+        if (paymentStatus === 'expired') {
             navigate('/pos');
+            return;
         }
-    }, [activeOrganizationId, transaction, navigate, clearCart]);
+        setIsCancelConfirmOpen(true);
+    };
+
+    const handleCancelConfirm = async () => {
+        if (transaction) {
+            try {
+                await api.post(`/organizations/${activeOrganizationId}/transactions/${transaction.id}/cancel`);
+            } catch (err) {
+                console.error('Cancel failed:', err);
+            }
+        }
+        clearCart();
+        navigate('/pos');
+    };
 
     const handleTimeout = useCallback(async () => {
         setPaymentStatus('expired');
@@ -112,13 +124,22 @@ const PayPayPaymentPage: React.FC = () => {
             }
 
             if (isManual) {
-                alert(`決済はまだ完了していません。\nPayPayステータス: ${data.paypayStatus}`);
+                toast({
+                    title: '未完了',
+                    description: `決済はまだ完了していません。\nPayPayステータス: ${data.paypayStatus}`,
+                });
             }
         } catch (err) {
             console.error('Status check failed:', err);
-            if (isManual) alert('ステータスの確認に失敗しました');
+            if (isManual) {
+                toast({
+                    title: 'エラー',
+                    description: 'ステータスの確認に失敗しました',
+                    variant: 'destructive',
+                });
+            }
         }
-    }, [activeOrganizationId, transaction, calculation, navigate, paymentStatus, clearCart]);
+    }, [activeOrganizationId, transaction, calculation, navigate, paymentStatus, clearCart, toast]);
 
 
 
@@ -400,7 +421,7 @@ const PayPayPaymentPage: React.FC = () => {
                     <Button
                         variant="outline"
                         className="h-14 text-gray-600 border-gray-200"
-                        onClick={handleCancel}
+                        onClick={handleCancelClick}
                     >
                         <X className="mr-2 h-5 w-5" />
                         {paymentStatus === 'expired' ? "POS画面に戻る" : "決済をキャンセル"}
@@ -408,6 +429,15 @@ const PayPayPaymentPage: React.FC = () => {
                 </div>
             </div>
 
+            <ConfirmDialog
+                open={isCancelConfirmOpen}
+                onOpenChange={setIsCancelConfirmOpen}
+                title="決済のキャンセル"
+                description="決済をキャンセルしてもよろしいですか？"
+                confirmText="キャンセルする"
+                variant="destructive"
+                onConfirm={handleCancelConfirm}
+            />
         </div>
     );
 };

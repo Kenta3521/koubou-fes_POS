@@ -60,7 +60,7 @@ export function useCategories() {
             return fetchCategories(activeOrganizationId, token);
         },
         enabled: !!activeOrganizationId && !!token,
-        staleTime: 5 * 60 * 1000, // 5分間キャッシュ
+        staleTime: 0,
     });
 }
 

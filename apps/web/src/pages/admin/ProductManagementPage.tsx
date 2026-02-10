@@ -23,6 +23,7 @@ import { Loader2, Plus, Pencil, Trash2 } from 'lucide-react';
 import { ProductEditModal } from '@/features/admin/product/ProductEditModal';
 import { Category, Product } from '@koubou-fes-pos/shared';
 import { usePermission } from '@/hooks/usePermission';
+import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 
 export default function ProductManagementPage() {
     const { orgId } = useParams<{ orgId: string }>();
@@ -45,6 +46,10 @@ export default function ProductManagementPage() {
     // Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState<Product | undefined>(undefined);
+
+    // 削除確認ダイアログの状態
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [productToDelete, setProductToDelete] = useState<Product | null>(null);
 
     const fetchData = useCallback(async () => {
         setIsLoading(true);
@@ -88,16 +93,22 @@ export default function ProductManagementPage() {
         setIsModalOpen(true);
     };
 
-    const handleDelete = async (product: Product) => {
-        if (!confirm(`商品「${product.name}」を削除してもよろしいですか？`)) return;
+    const handleDeleteClick = (product: Product) => {
+        setProductToDelete(product);
+        setIsDeleteDialogOpen(true);
+    };
+
+    const handleDeleteConfirm = async () => {
+        if (!orgId || !productToDelete) return;
 
         try {
-            await api.delete(`/organizations/${orgId}/products/${product.id}`);
+            await api.delete(`/organizations/${orgId}/products/${productToDelete.id}`);
             toast({
                 title: '削除成功',
                 description: '商品を削除しました',
             });
             fetchData(); // Refresh list
+            setProductToDelete(null);
         } catch (error) {
             console.error('Error deleting product:', error);
             toast({
@@ -246,7 +257,7 @@ export default function ProductManagementPage() {
                                             </Button>
                                         )}
                                         {can('delete', 'product') && (
-                                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => handleDelete(product)}>
+                                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => handleDeleteClick(product)}>
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
                                         )}
@@ -264,6 +275,16 @@ export default function ProductManagementPage() {
                 onSave={handleSave}
                 product={editingProduct}
                 categories={categories}
+            />
+
+            <ConfirmDialog
+                open={isDeleteDialogOpen}
+                onOpenChange={setIsDeleteDialogOpen}
+                title="商品の削除"
+                description={`商品「${productToDelete?.name}」を削除してもよろしいですか？`}
+                confirmText="削除"
+                variant="destructive"
+                onConfirm={handleDeleteConfirm}
             />
         </div>
     );

@@ -27,6 +27,9 @@ export function ProductGrid({ products, isLoading, cartQuantities, onProductTap 
         products.forEach(product => {
             // 商品に適用される割引を探す（優先度順）
             const applicableDiscount = autoDiscounts.find(d => {
+                if (d.targetType === 'ALL_PRODUCTS') {
+                    return true;
+                }
                 if (d.targetType === 'SPECIFIC_PROD' && d.targetProductId === product.id) {
                     return true;
                 }
