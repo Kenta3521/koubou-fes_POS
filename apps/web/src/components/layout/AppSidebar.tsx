@@ -14,7 +14,8 @@ import {
     History,
     Shield,
     Lock,
-    LogOut as ExitIcon
+    LogOut as ExitIcon,
+    FileText
 } from 'lucide-react';
 import PermissionGuard from '@/components/auth/PermissionGuard';
 import { useAuthStore } from '@/stores/authStore';
@@ -327,6 +328,20 @@ export function AppSidebar() {
                                             </SidebarMenuButton>
                                         </SidebarMenuItem>
                                     </PermissionGuard>
+                                    <PermissionGuard permission="audit:read">
+                                        <SidebarMenuItem>
+                                            <SidebarMenuButton
+                                                onClick={() => {
+                                                    const targetId = activeOrganizationId || user?.organizations?.[0]?.id;
+                                                    if (targetId) navigateAndClose(`/admin/${targetId}/audit-logs`);
+                                                }}
+                                                isActive={location.pathname.includes('/audit-logs')}
+                                            >
+                                                <FileText />
+                                                <span>監査ログ</span>
+                                            </SidebarMenuButton>
+                                        </SidebarMenuItem>
+                                    </PermissionGuard>
                                     <PermissionGuard permission="role:read">
                                         <SidebarMenuItem>
                                             <SidebarMenuButton
@@ -374,6 +389,14 @@ export function AppSidebar() {
                                             <Link to="/system/permissions">
                                                 <Lock className="mr-2 h-4 w-4" />
                                                 <span>権限マスタ管理</span>
+                                            </Link>
+                                        </SidebarMenuButton>
+                                    </SidebarMenuItem>
+                                    <SidebarMenuItem>
+                                        <SidebarMenuButton asChild isActive={location.pathname.startsWith('/system/audit-logs')} onClick={() => isMobile && setOpenMobile(false)}>
+                                            <Link to="/system/audit-logs">
+                                                <FileText className="mr-2 h-4 w-4" />
+                                                <span>システム監査ログ</span>
                                             </Link>
                                         </SidebarMenuButton>
                                     </SidebarMenuItem>

@@ -2,6 +2,7 @@
 import { Request, Response } from 'express';
 import prisma from '../utils/prisma.js';
 import { createLogger } from '../utils/logger.js';
+import { createAuditLog } from '../services/auditService.js';
 
 const logger = createLogger();
 
@@ -106,6 +107,24 @@ export async function createRole(req: Request, res: Response): Promise<void> {
             }
         });
 
+        // 監査ログ記録: ロール作成
+        try {
+            await createAuditLog({
+                userId: req.user!.id,
+                action: 'ROLE_CREATE',
+                category: 'ROLE',
+                organizationId: orgId,
+                targetId: role.id,
+                payload: {
+                    roleId: role.id,
+                    roleName: name,
+                    permissions: permissionCodes || []
+                },
+            });
+        } catch (error) {
+            logger.error('Failed to create audit log:', error);
+        }
+
         res.status(201).json({ success: true, data: role });
     } catch (error) {
         logger.error('Create role error:', error);
@@ -188,6 +207,45 @@ export async function updateRole(req: Request, res: Response): Promise<void> {
             });
         });
 
+        // 監査ログ記録: ロール更新または権限更新
+        try {
+            if (permissionCodes) {
+                // 権限更新
+                await createAuditLog({
+                    userId: req.user!.id,
+                    action: 'ROLE_PERM_UPDATE',
+                    category: 'ROLE',
+                    organizationId: orgId,
+                    targetId: roleId,
+                    payload: {
+                        roleId,
+                        roleName: existing.name,
+                        permissions: permissionCodes
+                    },
+                });
+            } else {
+                // ロール情報更新
+                const changes: any = {};
+                if (name !== undefined) changes.name = name;
+                if (description !== undefined) changes.description = description;
+
+                await createAuditLog({
+                    userId: req.user!.id,
+                    action: 'ROLE_UPDATE',
+                    category: 'ROLE',
+                    organizationId: orgId,
+                    targetId: roleId,
+                    payload: {
+                        roleId,
+                        roleName: existing.name,
+                        changes
+                    },
+                });
+            }
+        } catch (error) {
+            logger.error('Failed to create audit log:', error);
+        }
+
         res.status(200).json({ success: true, data: result });
     } catch (error) {
         logger.error('Update role error:', error);
@@ -225,6 +283,23 @@ export async function deleteRole(req: Request, res: Response): Promise<void> {
         }
 
         await prisma.serviceRole.delete({ where: { id: roleId } });
+
+        // 監査ログ記録: ロール削除
+        try {
+            await createAuditLog({
+                userId: req.user!.id,
+                action: 'ROLE_DELETE',
+                category: 'ROLE',
+                organizationId: orgId,
+                targetId: roleId,
+                payload: {
+                    roleId,
+                    roleName: role.name
+                },
+            });
+        } catch (error) {
+            logger.error('Failed to create audit log:', error);
+        }
 
         res.status(200).json({ success: true, message: 'ロールを削除しました' });
     } catch (error) {

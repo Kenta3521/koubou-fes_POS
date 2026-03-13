@@ -9,6 +9,8 @@ import { Request, Response } from 'express';
 import { validationResult } from 'express-validator';
 import { loginUser, registerUser, requestPasswordReset, resetPassword } from '../services/authService.js';
 import { createLogger } from '../utils/logger.js';
+import { createAuditLog } from '../services/auditService.js';
+import prisma from '../utils/prisma.js';
 
 const logger = createLogger();
 
@@ -37,6 +39,21 @@ export async function login(req: Request, res: Response): Promise<void> {
         // ログイン処理
         const data = await loginUser(email, password);
 
+        // 監査ログ記録: ログイン成功
+        try {
+            await createAuditLog({
+                userId: data.user.id,
+                action: 'LOGIN_SUCCESS',
+                category: 'AUTH',
+                payload: {
+                    ip: req.ip,
+                    userAgent: req.headers['user-agent'],
+                },
+            });
+        } catch (error) {
+            logger.error('Failed to create audit log:', error);
+        }
+
         // 成功レスポンス（API設計書.md 2.1）
         res.status(200).json({
             success: true,
@@ -49,6 +66,28 @@ export async function login(req: Request, res: Response): Promise<void> {
 
             switch (errorCode) {
                 case 'AUTH_INVALID_CREDENTIALS':
+                    // 監査ログ記録: ログイン失敗
+                    try {
+                        // メールアドレスからユーザーを検索
+                        const failedUser = await prisma.user.findUnique({
+                            where: { email: req.body.email },
+                        });
+
+                        // ユーザーが存在する場合のみログを記録
+                        if (failedUser) {
+                            await createAuditLog({
+                                userId: failedUser.id,
+                                action: 'LOGIN_FAILURE',
+                                category: 'AUTH',
+                                payload: {
+                                    ip: req.ip,
+                                    email: req.body.email,
+                                },
+                            });
+                        }
+                    } catch (auditError) {
+                        logger.error('Failed to create audit log:', auditError);
+                    }
                     res.status(401).json({
                         success: false,
                         error: {
@@ -125,6 +164,22 @@ export async function register(req: Request, res: Response): Promise<void> {
 
         // 登録処理
         const data = await registerUser(email, password, name, inviteCode);
+
+        // 監査ログ記録: ユーザー登録
+        try {
+            await createAuditLog({
+                userId: data.user.id,
+                action: 'USER_REGISTER',
+                category: 'AUTH',
+                organizationId: data.user.organizations?.[0]?.id,
+                payload: {
+                    email,
+                    name,
+                },
+            });
+        } catch (error) {
+            logger.error('Failed to create audit log:', error);
+        }
 
         // 成功レスポンス（API設計書.md 2.2）
         res.status(201).json({

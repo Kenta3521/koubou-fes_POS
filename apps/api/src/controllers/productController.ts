@@ -7,6 +7,7 @@
 import { Request, Response } from 'express';
 import { getProductsByOrganization, getProduct as getProductService, createProduct as createProductService, updateProduct as updateProductService, deleteProduct as deleteProductService } from '../services/productService.js';
 import { createLogger } from '../utils/logger.js';
+import { createAuditLog } from '../services/auditService.js';
 
 const logger = createLogger();
 
@@ -108,6 +109,26 @@ export async function createProduct(req: Request, res: Response): Promise<void> 
             isActive: isActive !== undefined ? Boolean(isActive) : undefined,
         });
 
+        // 監査ログ記録: 商品作成
+        try {
+            await createAuditLog({
+                userId: req.user!.id,
+                action: 'PRODUCT_CREATE',
+                category: 'PRODUCT',
+                organizationId: orgId,
+                targetId: product.id,
+                payload: {
+                    productId: product.id,
+                    productName: name,
+                    price: Number(price),
+                    categoryId,
+                    stock: stock !== undefined ? Number(stock) : undefined
+                },
+            });
+        } catch (error) {
+            logger.error('Failed to create audit log:', error);
+        }
+
         res.status(201).json({
             success: true,
             data: product,
@@ -150,6 +171,31 @@ export async function updateProduct(req: Request, res: Response): Promise<void> 
             stock: stock !== undefined ? Number(stock) : undefined,
             isActive: isActive !== undefined ? Boolean(isActive) : undefined,
         });
+
+        // 監査ログ記録: 商品更新
+        try {
+            const changes: any = {};
+            if (name !== undefined) changes.name = name;
+            if (price !== undefined) changes.price = Number(price);
+            if (categoryId !== undefined) changes.categoryId = categoryId;
+            if (stock !== undefined) changes.stock = Number(stock);
+            if (isActive !== undefined) changes.isActive = Boolean(isActive);
+
+            await createAuditLog({
+                userId: req.user!.id,
+                action: 'PRODUCT_UPDATE',
+                category: 'PRODUCT',
+                organizationId: orgId,
+                targetId: productId,
+                payload: {
+                    productId,
+                    productName: product.name,
+                    changes
+                },
+            });
+        } catch (error) {
+            logger.error('Failed to create audit log:', error);
+        }
 
         res.json({
             success: true,
@@ -195,7 +241,27 @@ export async function deleteProduct(req: Request, res: Response): Promise<void> 
     try {
         const { orgId, productId } = req.params;
 
+        // 削除前に商品情報を取得
+        const product = await getProductService(orgId, productId);
+
         await deleteProductService(orgId, productId);
+
+        // 監査ログ記録: 商品削除
+        try {
+            await createAuditLog({
+                userId: req.user!.id,
+                action: 'PRODUCT_DELETE',
+                category: 'PRODUCT',
+                organizationId: orgId,
+                targetId: productId,
+                payload: {
+                    productId,
+                    productName: product?.name
+                },
+            });
+        } catch (error) {
+            logger.error('Failed to create audit log:', error);
+        }
 
         res.status(204).send();
     } catch (error: any) {

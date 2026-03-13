@@ -41,7 +41,7 @@ router.get('/permissions', fetchAllPermissions);
 router.put('/permissions/:id', updatePermission);
 
 // Audit Logs
-import { getAllAuditLogs } from '../controllers/auditController.js';
-router.get('/audit-logs', getAllAuditLogs);
+import { getSystemAuditLogs } from '../controllers/auditController.js';
+router.get('/audit-logs', getSystemAuditLogs);
 
 export default router;

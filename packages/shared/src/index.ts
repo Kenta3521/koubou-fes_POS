@@ -5,6 +5,7 @@ export * from './types/user.js';
 export * from './types/organization.js';
 export * from './types/auth.js';
 export * from './types/api.js';
+export * from './types/audit.js';
 export * from './utils/ability.js';
 export * from './types/calculation.js';
 export * from './types/category.js';

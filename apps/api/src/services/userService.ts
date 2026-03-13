@@ -69,7 +69,7 @@ export async function updateProfile(
 export async function joinOrganization(
     userId: string,
     inviteCode: string
-): Promise<{ id: string; name: string; role: string }> {
+): Promise<{ id: string; name: string; role: string; organizationId: string }> {
     // 招待コードで団体を検索
     const organization = await prisma.organization.findUnique({
         where: { inviteCode },
@@ -128,6 +128,7 @@ export async function joinOrganization(
 
         return {
             id: organization.id,
+            organizationId: organization.id,
             name: organization.name,
             role: defaultRole?.name || 'Staff',
         };

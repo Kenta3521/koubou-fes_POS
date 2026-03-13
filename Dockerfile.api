@@ -1,0 +1,71 @@
+# =========
+# BUILDER
+# =========
+FROM node:20-alpine AS builder
+
+# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
+RUN apk update && apk add --no-cache libc6-compat openssl
+
+WORKDIR /app
+
+# Install pnpm
+RUN npm install -g pnpm@8.15.1
+
+# 依存関係のインストールに必要なファイルだけを先にコピー
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY apps/api/package.json ./apps/api/
+COPY apps/web/package.json ./apps/web/
+COPY packages/shared/package.json ./packages/shared/
+
+# Install dependencies (fetch all)
+RUN pnpm install --frozen-lockfile
+
+# Copy source code
+COPY . .
+
+# Generate Prisma client BEFORE building the API
+# APIのビルドにはPrisma Clientの型定義が必要
+WORKDIR /app/apps/api
+RUN pnpm generate
+
+# Build the API and shared packages
+WORKDIR /app
+RUN pnpm --filter api... build
+
+# =========
+# RUNNER
+# =========
+FROM node:20-alpine AS runner
+
+RUN apk update && apk add --no-cache openssl
+
+WORKDIR /app
+
+# Set production environment
+ENV NODE_ENV=production
+
+# Install pnpm
+RUN npm install -g pnpm@8.15.1
+
+# Copy root workspace files
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+
+# Copy built api application
+COPY --from=builder /app/apps/api/package.json ./apps/api/
+COPY --from=builder /app/apps/api/dist ./apps/api/dist
+COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
+
+# Copy shared package
+COPY --from=builder /app/packages/shared/package.json ./packages/shared/
+COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
+
+# Copy node modules (This includes the generated prisma client)
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules
+
+WORKDIR /app/apps/api
+
+EXPOSE 3001
+
+# Run the API server
+CMD ["node", "dist/server.js"]

@@ -7,6 +7,8 @@
 import { Request, Response } from 'express';
 import { getCategoriesByOrganization, createCategory as createCategoryService, updateCategory as updateCategoryService, deleteCategory as deleteCategoryService, reorderCategories as reorderCategoriesService } from '../services/categoryService.js';
 import { createLogger } from '../utils/logger.js';
+import { createAuditLog } from '../services/auditService.js';
+import prisma from '../utils/prisma.js';
 
 const logger = createLogger();
 
@@ -101,6 +103,24 @@ export async function createCategory(req: Request, res: Response): Promise<void>
         // 3. カテゴリ作成
         const newCategory = await createCategoryService(orgId, name, sortOrder);
 
+        // 監査ログ記録: カテゴリ作成
+        try {
+            await createAuditLog({
+                userId: req.user!.id,
+                action: 'CATEGORY_CREATE',
+                category: 'PRODUCT',
+                organizationId: orgId,
+                targetId: newCategory.id,
+                payload: {
+                    categoryId: newCategory.id,
+                    categoryName: name,
+                    organizationId: orgId
+                },
+            });
+        } catch (error) {
+            logger.error('Failed to create audit log:', error);
+        }
+
         // 4. レスポンス
         res.status(201).json({
             success: true,
@@ -157,6 +177,28 @@ export async function updateCategory(req: Request, res: Response): Promise<void>
         // 3. カテゴリ更新
         const updatedCategory = await updateCategoryService(orgId, categoryId, { name, sortOrder });
 
+        // 監査ログ記録: カテゴリ更新
+        try {
+            const changes: any = {};
+            if (name !== undefined) changes.name = name;
+            if (sortOrder !== undefined) changes.sortOrder = sortOrder;
+
+            await createAuditLog({
+                userId: req.user!.id,
+                action: 'CATEGORY_UPDATE',
+                category: 'PRODUCT',
+                organizationId: orgId,
+                targetId: categoryId,
+                payload: {
+                    categoryId,
+                    categoryName: updatedCategory.name,
+                    changes
+                },
+            });
+        } catch (error) {
+            logger.error('Failed to create audit log:', error);
+        }
+
         // 4. レスポンス
         res.status(200).json({
             success: true,
@@ -208,8 +250,28 @@ export async function deleteCategory(req: Request, res: Response): Promise<void>
         // 2. 権限チェック (Middlewareでチェック済み)
 
 
+        // カテゴリ情報を取得してから削除
+        const category = await prisma.category.findUnique({ where: { id: categoryId } });
+
         // 3. カテゴリ削除
         await deleteCategoryService(orgId, categoryId);
+
+        // 監査ログ記録: カテゴリ削除
+        try {
+            await createAuditLog({
+                userId: req.user!.id,
+                action: 'CATEGORY_DELETE',
+                category: 'PRODUCT',
+                organizationId: orgId,
+                targetId: categoryId,
+                payload: {
+                    categoryId,
+                    categoryName: category?.name
+                },
+            });
+        } catch (error) {
+            logger.error('Failed to create audit log:', error);
+        }
 
         // 4. レスポンス
         res.status(204).send();
@@ -273,6 +335,19 @@ export async function reorderCategories(req: Request, res: Response): Promise<vo
 
 
         await reorderCategoriesService(orgId, categoryIds);
+
+        // 監査ログ記録: カテゴリ並び替え
+        try {
+            await createAuditLog({
+                userId: req.user!.id,
+                action: 'CATEGORY_REORDER',
+                category: 'PRODUCT',
+                organizationId: orgId,
+                payload: { order: categoryIds },
+            });
+        } catch (error) {
+            logger.error('Failed to create audit log:', error);
+        }
 
         res.json({
             success: true,

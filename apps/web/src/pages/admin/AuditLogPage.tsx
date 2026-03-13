@@ -2,68 +2,91 @@ import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { AuditLogListResponse } from '@koubou-fes-pos/shared';
-import { AuditLogTable } from '@/components/admin/AuditLogTable';
-import { Card, CardContent } from '@/components/ui/card';
-import { History } from 'lucide-react';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import type { AuditLog } from '@koubou-fes-pos/shared';
+import { AuditLogTable } from '@/components/audit/AuditLogTable';
+import { AuditLogDetailModal } from '@/components/audit/AuditLogDetailModal';
+import type { AuditLogFilters } from '@/components/audit/AuditLogTable';
 
 export default function AuditLogPage() {
     const { orgId } = useParams<{ orgId: string }>();
-    const [activeTab, setActiveTab] = useState('all');
+    const [page, setPage] = useState(1);
+    const [limit] = useState(20);
+    const [filters, setFilters] = useState<AuditLogFilters>({});
+    const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
+    const [detailOpen, setDetailOpen] = useState(false);
 
     const { data, isLoading } = useQuery({
-        queryKey: ['audit-logs', orgId],
+        queryKey: ['audit-logs', orgId, page, filters],
         queryFn: async () => {
-            const res = await api.get(`/organizations/${orgId}/audit-logs`);
-            return res.data.data as AuditLogListResponse;
+            const params = new URLSearchParams();
+            if (filters.startDate) params.append('startDate', filters.startDate);
+            if (filters.endDate) params.append('endDate', filters.endDate);
+            if (filters.category) params.append('category', filters.category);
+            if (filters.userId) params.append('userId', filters.userId);
+            params.append('page', page.toString());
+            params.append('limit', limit.toString());
+
+            const res = await api.get(`/audit-logs/organizations/${orgId}?${params.toString()}`);
+            return res.data;
         },
         enabled: !!orgId,
     });
 
-    const filteredLogs = data?.logs.filter((log) => {
-        if (activeTab === 'all') return true;
-        if (activeTab === 'product') return log.action.startsWith('PRODUCT_');
-        if (activeTab === 'category') return log.action.startsWith('CATEGORY_');
-        if (activeTab === 'discount') return log.action.startsWith('DISCOUNT_');
-        if (activeTab === 'transaction') return log.action.startsWith('TRANS_');
-        if (activeTab === 'other') {
-            return !log.action.startsWith('PRODUCT_') &&
-                !log.action.startsWith('CATEGORY_') &&
-                !log.action.startsWith('DISCOUNT_') &&
-                !log.action.startsWith('TRANS_');
+    const handleViewDetail = (log: AuditLog) => {
+        setSelectedLog(log);
+        setDetailOpen(true);
+    };
+
+    const handleExportCsv = async () => {
+        try {
+            const params = new URLSearchParams();
+            if (filters.startDate) params.append('startDate', filters.startDate);
+            if (filters.endDate) params.append('endDate', filters.endDate);
+            if (filters.category) params.append('category', filters.category);
+            if (filters.userId) params.append('userId', filters.userId);
+
+            const response = await api.get(`/audit-logs/organizations/${orgId}/export?${params.toString()}`, {
+                responseType: 'blob',
+            });
+
+            // Create download link
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `audit-logs-${orgId}-${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('CSV export failed:', error);
         }
-        return true;
-    }) || [];
+    };
+
+    const logs = data?.data || [];
+    const total = data?.meta?.total || 0;
 
     return (
         <div className="container mx-auto py-6 space-y-6">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                    <History className="size-6" />
-                    <h1 className="text-2xl font-bold">監査ログ</h1>
-                </div>
-            </div>
+            <h1 className="text-2xl font-bold">監査ログ</h1>
 
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid grid-cols-6 w-fit h-auto p-1">
-                    <TabsTrigger value="all" className="px-4 py-2">全て</TabsTrigger>
-                    <TabsTrigger value="category" className="px-4 py-2">カテゴリ</TabsTrigger>
-                    <TabsTrigger value="product" className="px-4 py-2">商品</TabsTrigger>
-                    <TabsTrigger value="discount" className="px-4 py-2">割引</TabsTrigger>
-                    <TabsTrigger value="transaction" className="px-4 py-2">会計</TabsTrigger>
-                    <TabsTrigger value="other" className="px-4 py-2">その他</TabsTrigger>
-                </TabsList>
-            </Tabs>
+            <AuditLogTable
+                logs={logs}
+                total={total}
+                page={page}
+                limit={limit}
+                onPageChange={setPage}
+                onFilterChange={setFilters}
+                onViewDetail={handleViewDetail}
+                onExportCsv={handleExportCsv}
+                isLoading={isLoading}
+            />
 
-            <Card>
-                <CardContent className="pt-6">
-                    <AuditLogTable
-                        logs={filteredLogs}
-                        isLoading={isLoading}
-                    />
-                </CardContent>
-            </Card>
+            <AuditLogDetailModal
+                log={selectedLog}
+                open={detailOpen}
+                onOpenChange={setDetailOpen}
+            />
         </div>
     );
 }

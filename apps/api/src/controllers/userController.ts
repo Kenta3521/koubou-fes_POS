@@ -7,6 +7,7 @@
 import { Request, Response } from 'express';
 import { updateProfile, joinOrganization as joinOrgService, leaveOrganization as leaveOrgService } from '../services/userService.js';
 import { createLogger } from '../utils/logger.js';
+import { createAuditLog } from '../services/auditService.js';
 
 const logger = createLogger();
 
@@ -52,6 +53,22 @@ export async function updateMe(req: Request, res: Response): Promise<void> {
 
         const { name, email } = req.body;
         const updatedUser = await updateProfile(req.user.id, { name, email });
+
+        // 監査ログ記録: プロフィール更新
+        try {
+            const changes: any = {};
+            if (name !== undefined) changes.name = name;
+            if (email !== undefined) changes.email = email;
+
+            await createAuditLog({
+                userId: req.user.id,
+                action: 'USER_PROFILE_UPDATE',
+                category: 'USER',
+                payload: { changes },
+            });
+        } catch (error) {
+            logger.error('Failed to create audit log:', error);
+        }
 
         res.status(200).json({
             success: true,
@@ -123,6 +140,19 @@ export async function joinOrganization(req: Request, res: Response): Promise<voi
 
         // サービス呼び出し
         const result = await joinOrgService(userId, inviteCode);
+
+        // 監査ログ記録: 団体参加
+        try {
+            await createAuditLog({
+                userId,
+                action: 'MEMBER_JOIN',
+                category: 'USER',
+                organizationId: result.organizationId,
+                payload: { inviteCode, newMemberId: userId },
+            });
+        } catch (error) {
+            logger.error('Failed to create audit log:', error);
+        }
 
         res.status(200).json({
             success: true,
@@ -212,6 +242,19 @@ export async function leaveOrganization(req: Request, res: Response): Promise<vo
         }
 
         const result = await leaveOrgService(userId, organizationId);
+
+        // 監査ログ記録: 団体脱退
+        try {
+            await createAuditLog({
+                userId,
+                action: 'MEMBER_LEAVE',
+                category: 'USER',
+                organizationId,
+                payload: { reason: req.body.reason },
+            });
+        } catch (error) {
+            logger.error('Failed to create audit log:', error);
+        }
 
         res.status(200).json({
             success: true,

@@ -8,31 +8,59 @@ export const formatAuditLogMessage = (log: AuditLog): string => {
     const { action } = log;
     const payload = log.payload as {
         name?: string;
+        productName?: string;
+        categoryName?: string;
+        discountName?: string;
+        roleName?: string;
         price?: number;
         stock?: number;
         email?: string;
         inviteCode?: string;
-        changes?: Record<string, { old: unknown; new: unknown }>;
+        newMemberId?: string;
+        targetUserId?: string;
+        reason?: string;
+        amount?: number;
+        totalAmount?: number;
+        theoretical?: number;
+        actual?: number;
+        diff?: number;
+        sortOrder?: number;
+        type?: string;
+        value?: number;
+        permissions?: string[];
+        description?: string;
+        isActive?: boolean;
+        changes?: Record<string, unknown>;
     };
 
     switch (action) {
         // 認証・ユーザー関連
-        case 'LOGIN':
+        case 'LOGIN_SUCCESS':
             return 'ログインしました。';
-        case 'USER_CREATE':
-            return `ユーザー「${payload?.email || '不明'}」が作成されました。`;
+        case 'LOGIN_FAILURE':
+            return `ログインに失敗しました（メール: ${payload?.email || '不明'}）。`;
+        case 'USER_REGISTER':
+            return `ユーザー「${payload?.email || '不明'}」が新規登録されました。`;
+        case 'USER_PROFILE_UPDATE':
+            return 'プロフィール情報を更新しました。';
+        case 'PASSWORD_CHANGE':
+            return 'パスワードを変更しました。';
         case 'MEMBER_JOIN':
             return `団体に加入しました（招待コード: ${payload?.inviteCode || '直参加'}）。`;
-        case 'PASSWORD_RESET_REQ':
-            return 'パスワードリセットの申請が行われました。';
-        case 'PASSWORD_RESET':
-            return 'パスワードをリセットしました。';
+        case 'MEMBER_ADD':
+            return `メンバー「${payload?.newMemberId || '不明'}」を追加しました。`;
+        case 'MEMBER_UPDATE':
+            return `メンバー「${payload?.targetUserId || log.targetId}」の情報を更新しました。`;
+        case 'MEMBER_REMOVE':
+            return `メンバー「${payload?.targetUserId || log.targetId}」を強制脱退させました（理由: ${payload?.reason || '未記載'}）。`;
+        case 'MEMBER_LEAVE':
+            return `団体から脱退しました（理由: ${payload?.reason || '未記載'}）。`;
 
         // 商品関連
         case 'PRODUCT_CREATE':
-            return `商品「${payload?.name || '名称不明'}」を作成しました（価格: ${payload?.price}円, 在庫: ${payload?.stock ?? 0}）。`;
+            return `商品「${payload?.productName || '名称不明'}」を作成しました（価格: ${payload?.price}円, 在庫: ${payload?.stock ?? 0}）。`;
         case 'PRODUCT_UPDATE': {
-            const name = payload?.name || log.targetId;
+            const name = payload?.productName || log.targetId;
             const changes = payload?.changes || {};
             const changeKeys = Object.keys(changes);
 
@@ -55,13 +83,13 @@ export const formatAuditLogMessage = (log: AuditLog): string => {
             return `商品「${name}」の${changeDesc}を更新しました。`;
         }
         case 'PRODUCT_DELETE':
-            return `商品「${payload?.name || log.targetId}」を削除しました。`;
+            return `商品「${payload?.productName || log.targetId}」を削除しました。`;
 
         // カテゴリ関連
         case 'CATEGORY_CREATE':
             return `カテゴリ「${payload?.name || '名称不明'}」を作成しました（順序: ${payload?.sortOrder}）。`;
         case 'CATEGORY_UPDATE': {
-            const name = payload?.name || log.targetId;
+            const name = payload?.categoryName || log.targetId;
             const changes = payload?.changes || {};
             const changeKeys = Object.keys(changes);
 
@@ -81,25 +109,23 @@ export const formatAuditLogMessage = (log: AuditLog): string => {
             return `カテゴリ「${name}」の${changeDesc}を更新しました。`;
         }
         case 'CATEGORY_DELETE':
-            return `カテゴリ「${payload?.name || log.targetId}」を削除しました。`;
+            return `カテゴリ「${payload?.categoryName || log.targetId}」を削除しました。`;
         case 'CATEGORY_REORDER':
             return 'カテゴリの並び替えを行いました。';
 
         // 会計・取引関連
-        case 'TRANS_CREATE':
-            return `取引を開始しました（点数: ${payload?.itemsCount || 0}, 支払額: ${payload?.totalPayable || 0}円）。`;
-        case 'TRANS_COMPLETE':
-            return `取引を完了しました（取引ID: ${log.targetId}）。`;
-        case 'TRANS_CANCEL':
-            return `取引をキャンセルしました（取引ID: ${log.targetId}）。`;
-        case 'TRANS_REFUND':
-            return `取引を返金処理しました（取引ID: ${log.targetId}）。`;
+        case 'TRANSACTION_CANCEL':
+            return `取引をキャンセルしました（取引ID: ${log.targetId}、理由: ${payload?.reason || '未記載'}）。`;
+        case 'TRANSACTION_REFUND':
+            return `取引を返金処理しました（取引ID: ${log.targetId}、金額: ${payload?.amount || 0}円、理由: ${payload?.reason || '未記載'}）。`;
+        case 'CASH_REPORT_CREATE':
+            return `レジ締めを実施しました（理論値: ${payload?.theoretical || 0}円、実際: ${payload?.actual || 0}円、差異: ${payload?.diff || 0}円）。`;
 
         // 割引・設定関連
         case 'DISCOUNT_CREATE':
-            return `割引「${payload?.name || '名称不明'}」を作成しました（${payload?.type === 'PERCENT' ? `${payload?.value}%引` : `${payload?.value}円引`}）。`;
+            return `割引「${payload?.discountName || '名称不明'}」を作成しました（${payload?.type === 'PERCENT' ? `${payload?.value}%引` : `${payload?.value}円引`}）。`;
         case 'DISCOUNT_UPDATE': {
-            const name = payload?.name || log.targetId;
+            const name = payload?.discountName || log.targetId;
             const changes = payload?.changes || {};
             const changeKeys = Object.keys(changes);
 
@@ -117,15 +143,15 @@ export const formatAuditLogMessage = (log: AuditLog): string => {
             return `割引「${name}」の${changeDesc}。`;
         }
         case 'DISCOUNT_DELETE':
-            return `割引「${payload?.name || log.targetId}」を削除しました。`;
+            return `割引「${payload?.discountName || log.targetId}」を削除しました。`;
 
         // 権限・ロール関連
         case 'ROLE_CREATE':
-            return `ロール「${payload?.name}」を作成しました。`;
+            return `ロール「${payload?.roleName || '名称不明'}」を作成しました。`;
         case 'ROLE_UPDATE':
-            return `ロール「${log.targetId}」を更新しました（権限: ${Array.isArray(payload?.permissions) ? payload.permissions.join(', ') : '変更なし'}）。`;
+            return `ロール「${payload?.roleName || log.targetId}」を更新しました。`;
         case 'ROLE_DELETE':
-            return `ロール「${log.targetId}」を削除しました。`;
+            return `ロール「${payload?.roleName || log.targetId}」を削除しました。`;
         case 'ROLE_PERM_SET':
             return `ロール「${log.targetId}」の権限をセットしました。`;
         case 'PERMISSION_DEF':

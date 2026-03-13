@@ -269,14 +269,16 @@ erDiagram
 
 ### 3.11 AuditLog（監査ログ）
 
-| カラム名 | 型 | 制約 | 説明 |
+| カラム名 | 型 | 制約 |説明	|
 |----------|-----|------|------|
 | id | UUID | PK | ログID |
 | organizationId | UUID | FK (NULL可) | 団体ID |
 | userId | UUID | FK | 操作者ID |
+| category | String | NOT NULL | 操作カテゴリ (AUTH, PRODUCT, DISCOUNT, ROLE, TRANSACTION, ORG, SYSTEM) |
 | action | String | NOT NULL | 操作種別 |
 | targetId | UUID | NULL可 | 操作対象ID |
 | payload | JSON | NULL可 | 変更前後の値等 |
+| isSystemAdminAction | Boolean | DEFAULT: false | システム管理者操作フラグ |
 | createdAt | DateTime | DEFAULT: now() | 日時 |
 
 **action の例:**
@@ -506,15 +508,21 @@ model CashReport {
 }
 
 model AuditLog {
-  id             String        @id @default(uuid())
-  organizationId String?
-  userId         String
-  action         String
-  targetId       String?
-  payload        Json?
-  organization   Organization? @relation(fields: [organizationId], references: [id])
-  user           User          @relation(fields: [userId], references: [id])
-  createdAt      DateTime      @default(now())
+  id                  String        @id @default(uuid())
+  organizationId      String?
+  userId              String
+  category            String
+  action              String
+  targetId            String?
+  payload             Json?
+  isSystemAdminAction Boolean       @default(false)
+  createdAt           DateTime      @default(now())
+  organization        Organization? @relation(fields: [organizationId], references: [id])
+  user                User          @relation(fields: [userId], references: [id])
+
+  @@index([organizationId, createdAt])
+  @@index([category])
+  @@index([userId])
 }
 
 model SystemSetting {

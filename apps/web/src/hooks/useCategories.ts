@@ -4,6 +4,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
+import { api } from '../lib/api';
 import { useAuthStore } from '../stores/authStore';
 
 interface Category {
@@ -13,39 +14,9 @@ interface Category {
     sortOrder: number;
 }
 
-interface CategoriesResponse {
-    success: boolean;
-    data: Category[];
-    error?: {
-        code: string;
-        message: string;
-    };
-}
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-
-async function fetchCategories(orgId: string, token: string): Promise<Category[]> {
-    const response = await fetch(
-        `${API_BASE_URL}/api/v1/organizations/${orgId}/categories`,
-        {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-            },
-        }
-    );
-
-    if (!response.ok) {
-        throw new Error(`カテゴリの取得に失敗しました: ${response.status}`);
-    }
-
-    const result: CategoriesResponse = await response.json();
-
-    if (!result.success) {
-        throw new Error(result.error?.message || 'カテゴリの取得に失敗しました');
-    }
-
-    return result.data;
+async function fetchCategories(orgId: string): Promise<Category[]> {
+    const response = await api.get(`/organizations/${orgId}/categories`);
+    return response.data.data;
 }
 
 export function useCategories() {
@@ -54,10 +25,10 @@ export function useCategories() {
     return useQuery({
         queryKey: ['categories', activeOrganizationId],
         queryFn: () => {
-            if (!activeOrganizationId || !token) {
+            if (!activeOrganizationId) {
                 throw new Error('団体が選択されていません');
             }
-            return fetchCategories(activeOrganizationId, token);
+            return fetchCategories(activeOrganizationId);
         },
         enabled: !!activeOrganizationId && !!token,
         staleTime: 0,

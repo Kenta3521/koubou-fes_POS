@@ -49,8 +49,8 @@ router.use('/:orgId/transactions', transactionRoutes);
 router.use('/:orgId/members', memberRoutes);
 
 // Audit Log Routes
-import { getOrganizationAuditLogs } from '../controllers/auditController.js';
-router.get('/:orgId/audit-logs', authenticate, checkPermission('read', 'audit'), getOrganizationAuditLogs);
+import { getOrgAuditLogs } from '../controllers/auditController.js';
+router.get('/:orgId/audit-logs', authenticate, checkPermission('read', 'audit'), getOrgAuditLogs);
 
 // Dashboard Routes
 router.use('/:orgId/dashboard', dashboardRoutes);

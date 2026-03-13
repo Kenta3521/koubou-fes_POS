@@ -4,6 +4,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
+import { api } from '../lib/api';
 import { useAuthStore } from '../stores/authStore';
 
 interface Product {
@@ -16,25 +17,13 @@ interface Product {
     isActive: boolean;
 }
 
-interface ProductsResponse {
-    success: boolean;
-    data: Product[];
-    error?: {
-        code: string;
-        message: string;
-    };
-}
-
 interface ProductFilters {
     categoryId?: string;
     isActive?: boolean;
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-
 async function fetchProducts(
     orgId: string,
-    token: string,
     filters?: ProductFilters
 ): Promise<Product[]> {
     const params = new URLSearchParams();
@@ -46,27 +35,11 @@ async function fetchProducts(
         params.append('isActive', filters.isActive.toString());
     }
 
-    const queryString = params.toString();
-    const url = `${API_BASE_URL}/api/v1/organizations/${orgId}/products${queryString ? `?${queryString}` : ''}`;
-
-    const response = await fetch(url, {
-        headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-        },
+    const response = await api.get(`/organizations/${orgId}/products`, {
+        params
     });
 
-    if (!response.ok) {
-        throw new Error(`商品の取得に失敗しました: ${response.status}`);
-    }
-
-    const result: ProductsResponse = await response.json();
-
-    if (!result.success) {
-        throw new Error(result.error?.message || '商品の取得に失敗しました');
-    }
-
-    return result.data;
+    return response.data.data;
 }
 
 export function useProducts(filters?: ProductFilters) {
@@ -75,10 +48,10 @@ export function useProducts(filters?: ProductFilters) {
     return useQuery({
         queryKey: ['products', activeOrganizationId, filters],
         queryFn: () => {
-            if (!activeOrganizationId || !token) {
+            if (!activeOrganizationId) {
                 throw new Error('団体が選択されていません');
             }
-            return fetchProducts(activeOrganizationId, token, filters);
+            return fetchProducts(activeOrganizationId, filters);
         },
         enabled: !!activeOrganizationId && !!token,
         staleTime: 0, // 在庫変動を考慮して、常に最新情報を取得するように（キャッシュからではなく必ずフェッチ）

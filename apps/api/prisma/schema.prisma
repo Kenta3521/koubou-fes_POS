@@ -203,16 +203,21 @@ model CashReport {
 }
 
 model AuditLog {
-  id             String        @id @default(uuid())
-  organizationId String?
-  userId         String
-  action         String
-  targetId       String?
+  id                  String        @id @default(uuid())
+  organizationId      String?
+  userId              String
+  category            String
+  action              String
+  targetId            String?
   payload             Json?
   isSystemAdminAction Boolean       @default(false)
   createdAt           DateTime      @default(now())
-  organization   Organization? @relation(fields: [organizationId], references: [id])
-  user           User          @relation(fields: [userId], references: [id])
+  organization        Organization? @relation(fields: [organizationId], references: [id])
+  user                User          @relation(fields: [userId], references: [id])
+
+  @@index([organizationId, createdAt])
+  @@index([category])
+  @@index([userId])
 }
 
 model SystemSetting {

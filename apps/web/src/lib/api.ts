@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // APIクライアントの作成
 export const api = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1',
+    baseURL: import.meta.env.VITE_API_URL || '/api/v1',
     headers: {
         'Content-Type': 'application/json',
     },
@@ -80,3 +80,25 @@ api.interceptors.response.use(
         return Promise.reject(error);
     }
 );
+
+// Audit Log Types and Functions
+export interface AuditLogFilters {
+    startDate?: string;
+    endDate?: string;
+    category?: string;
+    userId?: string;
+    organizationId?: string;
+}
+
+export async function getSystemAuditLogs(filters: AuditLogFilters & { page?: number; limit?: number }) {
+    const params = new URLSearchParams();
+    if (filters.startDate) params.append('startDate', filters.startDate);
+    if (filters.endDate) params.append('endDate', filters.endDate);
+    if (filters.category) params.append('category', filters.category);
+    if (filters.userId) params.append('userId', filters.userId);
+    if (filters.organizationId) params.append('organizationId', filters.organizationId);
+    if (filters.page) params.append('page', filters.page.toString());
+    if (filters.limit) params.append('limit', filters.limit.toString());
+
+    return api.get(`/audit-logs/admin?${params.toString()}`);
+}

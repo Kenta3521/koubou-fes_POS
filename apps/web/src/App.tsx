@@ -35,6 +35,8 @@ import AccessDeniedPage from './pages/AccessDeniedPage';
 import SystemRoleManagementPage from './pages/system/SystemRoleManagementPage';
 import SystemPermissionManagementPage from './pages/system/SystemPermissionManagementPage';
 import RoleMembersPage from './pages/admin/RoleMembersPage';
+import AuditLogPage from './pages/admin/AuditLogPage';
+import SystemAuditLogPage from './pages/system/SystemAuditLogPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -113,6 +115,7 @@ function App() {
                     <Route path="/admin/:orgId/roles" element={<RoleManagementPage />} />
                     <Route path="/admin/:orgId/roles/:roleId" element={<RoleEditPage />} />
                     <Route path="/admin/:orgId/roles/:roleId/members" element={<RoleMembersPage />} />
+                    <Route path="/admin/:orgId/audit-logs" element={<AuditLogPage />} />
                   </Route>
 
                 </Route>
@@ -129,6 +132,7 @@ function App() {
                     <Route path="/system/roles/:roleId" element={<RoleEditPage />} />
                     <Route path="/system/roles/:roleId/members" element={<RoleMembersPage />} />
                     <Route path="/system/permissions" element={<SystemPermissionManagementPage />} />
+                    <Route path="/system/audit-logs" element={<SystemAuditLogPage />} />
                   </Route>
                 </Route>
                 <Route path="/access-denied" element={<AccessDeniedPage />} />

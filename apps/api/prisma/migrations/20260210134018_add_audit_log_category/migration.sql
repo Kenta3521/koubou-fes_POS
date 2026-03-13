@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "AuditLog" ALTER COLUMN "category" DROP NOT NULL,
+ALTER COLUMN "category" DROP DEFAULT;

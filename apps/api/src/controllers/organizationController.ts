@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import prisma from '../utils/prisma.js';
 import { createLogger } from '../utils/logger.js';
+import { createAuditLog } from '../services/auditService.js';
 
 const logger = createLogger();
 
@@ -115,6 +116,21 @@ export async function createOrganization(req: Request, res: Response): Promise<v
             }
         });
 
+        // 監査ログ記録: 団体作成
+        try {
+            await createAuditLog({
+                userId: req.user!.id,
+                action: 'ORG_CREATE',
+                category: 'ORG',
+                organizationId: organization.id,
+                targetId: organization.id,
+                payload: { name, inviteCode },
+                isSystemAdminAction: true,
+            });
+        } catch (error) {
+            logger.error('Failed to create audit log:', error);
+        }
+
         res.status(201).json({
             success: true,
             data: organization
@@ -152,6 +168,25 @@ export async function updateOrganization(req: Request, res: Response): Promise<v
                 isActive
             }
         });
+
+        // 監査ログ記録: 団体更新
+        try {
+            const changes: any = {};
+            if (name !== undefined) changes.name = name;
+            if (isActive !== undefined) changes.isActive = isActive;
+
+            await createAuditLog({
+                userId: req.user!.id,
+                action: 'ORG_UPDATE',
+                category: 'ORG',
+                organizationId: orgId,
+                targetId: orgId,
+                payload: { changes },
+                isSystemAdminAction: true,
+            });
+        } catch (error) {
+            logger.error('Failed to create audit log:', error);
+        }
 
         res.json({
             success: true,
@@ -195,10 +230,27 @@ export async function regenerateInviteCode(req: Request, res: Response): Promise
             newInviteCode = result;
         }
 
+        const oldOrg = await prisma.organization.findUnique({ where: { id: orgId } });
+
         const organization = await prisma.organization.update({
             where: { id: orgId },
             data: { inviteCode: newInviteCode }
         });
+
+        // 監査ログ記録: 招待コード再発行
+        try {
+            await createAuditLog({
+                userId: req.user!.id,
+                action: 'ORG_INVITE_REGEN',
+                category: 'ORG',
+                organizationId: orgId,
+                targetId: orgId,
+                payload: { oldCode: oldOrg?.inviteCode, newCode: newInviteCode },
+                isSystemAdminAction: true,
+            });
+        } catch (error) {
+            logger.error('Failed to create audit log:', error);
+        }
 
         res.json({
             success: true,

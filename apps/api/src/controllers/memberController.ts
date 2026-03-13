@@ -2,6 +2,7 @@
 import { Request, Response } from 'express';
 import * as memberService from '../services/memberService.js';
 import { createLogger } from '../utils/logger.js';
+import { createAuditLog } from '../services/auditService.js';
 
 const logger = createLogger();
 
@@ -37,6 +38,21 @@ export async function updateMember(req: Request, res: Response): Promise<void> {
 
     try {
         const member = await memberService.updateMember(orgId, userId, { roleId, permissions });
+
+        // 監査ログ記録: メンバー更新
+        try {
+            await createAuditLog({
+                userId: req.user!.id,
+                action: 'MEMBER_UPDATE',
+                category: 'USER',
+                organizationId: orgId,
+                targetId: userId,
+                payload: { targetUserId: userId, changes: { roleId, permissions } },
+            });
+        } catch (error) {
+            logger.error('Failed to create audit log:', error);
+        }
+
         res.status(200).json({
             success: true,
             data: member,
@@ -61,6 +77,21 @@ export async function deleteMember(req: Request, res: Response): Promise<void> {
 
     try {
         await memberService.removeMember(orgId, userId);
+
+        // 監査ログ記録: メンバー削除
+        try {
+            await createAuditLog({
+                userId: req.user!.id,
+                action: 'MEMBER_REMOVE',
+                category: 'USER',
+                organizationId: orgId,
+                targetId: userId,
+                payload: { targetUserId: userId, reason: req.body.reason || 'Removed by admin' },
+            });
+        } catch (error) {
+            logger.error('Failed to create audit log:', error);
+        }
+
         res.status(200).json({
             success: true,
             message: 'メンバーを削除しました',
@@ -107,6 +138,21 @@ export async function addMember(req: Request, res: Response): Promise<void> {
 
     try {
         const membership = await memberService.addMember(orgId, userId);
+
+        // 監査ログ記録: メンバー追加
+        try {
+            await createAuditLog({
+                userId: req.user!.id,
+                action: 'MEMBER_ADD',
+                category: 'USER',
+                organizationId: orgId,
+                targetId: userId,
+                payload: { newMemberId: userId, addedBy: req.user!.id },
+            });
+        } catch (error) {
+            logger.error('Failed to create audit log:', error);
+        }
+
         res.status(201).json({
             success: true,
             data: membership,

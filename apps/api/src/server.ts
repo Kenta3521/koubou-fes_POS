@@ -62,6 +62,9 @@ import webhookRoutes from './routes/webhooks.js';
 app.use('/api/v1/webhooks', webhookRoutes);
 import adminRoutes from './routes/admin.js';
 app.use('/api/v1/admin', adminRoutes);
+import auditLogsRoutes from './routes/auditLogs.js';
+app.use('/api/v1/audit-logs', auditLogsRoutes);
+
 
 
 

@@ -3,6 +3,7 @@ export interface AuditLog {
     id: string;
     userId: string;
     organizationId?: string | null;
+    category: string;
     action: string;
     targetId?: string | null;
     payload: any;

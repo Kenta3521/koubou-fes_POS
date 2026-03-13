@@ -6,6 +6,10 @@ const { TransactionStatus } = pkg;
 import type { TransactionStatus as TransactionStatusType } from '@prisma/client';
 import prisma from '../utils/prisma.js';
 import { PAYPAY } from '../lib/paypay.js';
+import { createAuditLog } from '../services/auditService.js';
+import { createLogger } from '../utils/logger.js';
+
+const logger = createLogger();
 
 export const calculate = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -329,6 +333,24 @@ export const cancelTransaction = async (req: Request, res: Response, next: NextF
         // ここではファイル上部のimportを修正する必要があるため、一旦関数名で呼ぶ
         const { cancelTransaction: cancelService } = await import('../services/transactionService.js');
         const canceledTransaction = await cancelService(transactionId, userId, orgId);
+
+        // 監査ログ記録: 取引キャンセル
+        try {
+            await createAuditLog({
+                userId,
+                action: 'TRANSACTION_CANCEL',
+                category: 'TRANSACTION',
+                organizationId: orgId,
+                targetId: transactionId,
+                payload: {
+                    transactionId,
+                    total: canceledTransaction.totalAmount,
+                    reason: req.body.reason,
+                },
+            });
+        } catch (error) {
+            logger.error('Failed to create audit log:', error);
+        }
 
         res.json({
             success: true,
