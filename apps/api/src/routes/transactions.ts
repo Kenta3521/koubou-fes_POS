@@ -29,6 +29,11 @@ router.post('/', authenticate, checkPermission('create', 'transaction'), createT
 // Complete cash payment (P2-021)
 router.post('/:id/complete-cash', authenticate, checkPermission('create', 'transaction'), completeCashPayment);
 
+// POST /api/v1/organizations/:orgId/transactions/:id/complete-tap-to-pay
+// Complete Tap to Pay on iPhone (Stripe) payment
+import { completeTapToPay } from '../controllers/transactionController.js';
+router.post('/:id/complete-tap-to-pay', authenticate, checkPermission('create', 'transaction'), completeTapToPay);
+
 // POST /api/v1/organizations/:orgId/transactions/:id/paypay/create
 // Create PayPay QR code (P3-004)
 router.post('/:id/paypay/create', authenticate, checkPermission('create', 'transaction'), createPayPayPayment);

@@ -26,6 +26,8 @@ export const calculate = async (req: Request, res: Response, next: NextFunction)
             });
         }
 
+        console.log(`[Calculate] orgId: ${orgId}, manualDiscountId: ${manualDiscountId}, items:`, JSON.stringify(items));
+
         const result = await calculateOrder(orgId, items, manualDiscountId);
 
         res.json({
@@ -217,6 +219,66 @@ export const completeCashPayment = async (req: Request, res: Response, next: Nex
 };
 
 /**
+ * Tap to Pay決済完了
+ * POST /api/v1/organizations/:orgId/transactions/:id/complete-tap-to-pay
+ */
+export const completeTapToPay = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { orgId, id: transactionId } = req.params;
+        const userId = req.user?.id;
+        const { paymentIntentId } = req.body;
+
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                error: {
+                    code: 'UNAUTHORIZED',
+                    message: 'User not authenticated',
+                },
+            });
+        }
+
+        if (!paymentIntentId) {
+            return res.status(400).json({
+                success: false,
+                error: {
+                    code: 'MISSING_PAYMENT_INTENT',
+                    message: 'paymentIntentId is required',
+                },
+            });
+        }
+
+        const completedTransaction = await completeTransactionService.completeTransaction(transactionId, userId, orgId);
+
+        res.json({
+            success: true,
+            data: completedTransaction,
+        });
+    } catch (error: any) {
+        console.error('Complete TaptoPay transaction error:', error);
+
+        if (error.message === 'TRANSACTION_NOT_FOUND') {
+            return res.status(404).json({ success: false, error: { code: 'TRANSACTION_NOT_FOUND', message: '取引が見つかりません' } });
+        }
+        if (error.message === 'ORGANIZATION_MISMATCH') {
+            return res.status(403).json({ success: false, error: { code: 'ORGANIZATION_MISMATCH', message: 'この取引は別の組織に属しています' } });
+        }
+        if (error.message === 'USER_NOT_MEMBER') {
+            return res.status(403).json({ success: false, error: { code: 'USER_NOT_MEMBER', message: 'この組織のメンバーではありません' } });
+        }
+        if (error.message === 'TRANSACTION_NOT_PENDING') {
+            return res.status(400).json({ success: false, error: { code: 'TRANSACTION_NOT_PENDING', message: 'この取引は既に完了またはキャンセルされています' } });
+        }
+        if (error.message?.startsWith('INSUFFICIENT_STOCK')) {
+            return res.status(400).json({ success: false, error: { code: 'INSUFFICIENT_STOCK', message: error.message.replace('INSUFFICIENT_STOCK: ', '在庫不足: ') } });
+        }
+
+        next(error);
+    }
+};
+
+
+/**
  * PayPay決済開始
  * POST /api/v1/organizations/:orgId/transactions/:id/paypay/create
  * P3-004
@@ -292,12 +354,12 @@ export const createPayPayPayment = async (req: Request, res: Response, next: Nex
                 }
             });
         } else {
-            console.error('PayPay API error:', response.BODY?.resultInfo || response);
+            console.error('[PayPay] API error details:', response.BODY?.resultInfo || response);
             res.status(500).json({
                 success: false,
                 error: {
                     code: 'PAYPAY_CREATE_FAILED',
-                    message: 'PayPay QRコードの作成に失敗しました',
+                    message: response.BODY?.resultInfo?.message || 'PayPay QRコードの作成に失敗しました',
                     details: response.BODY?.resultInfo
                 }
             });

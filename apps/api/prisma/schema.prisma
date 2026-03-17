@@ -265,6 +265,7 @@ enum TransactionStatus {
 enum PaymentMethod {
   CASH
   PAYPAY
+  TAP_TO_PAY
 }
 
 enum StockChangeReason {
