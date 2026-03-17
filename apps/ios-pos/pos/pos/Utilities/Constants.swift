@@ -3,6 +3,10 @@ import Foundation
 struct Constants {
     struct API {
         // FIXME: Update with actual production URL when deploying
-        nonisolated(unsafe) static let baseURL = URL(string: "http://localhost:3001/api/v1")!
+        static let baseURL = URL(string: "http://192.168.11.2:3001/api/v1")!
+    }
+
+    struct UserDefaultsKeys {
+        static let selectedOrganizationId = "selectedOrganizationId"
     }
 }

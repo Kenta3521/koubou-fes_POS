@@ -2,7 +2,7 @@ import Foundation
 import KeychainAccess
 
 final class KeychainHelper: @unchecked Sendable {
-    nonisolated(unsafe) static let shared = KeychainHelper()
+    static let shared = KeychainHelper()
     
     // Bundle Identifier based service name
     private let keychain: Keychain

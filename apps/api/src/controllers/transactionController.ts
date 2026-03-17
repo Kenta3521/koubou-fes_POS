@@ -248,6 +248,12 @@ export const completeTapToPay = async (req: Request, res: Response, next: NextFu
             });
         }
 
+        // stripePaymentIntentId を Transaction に保存（未保存の場合のみ）
+        await prisma.transaction.updateMany({
+            where: { id: transactionId, stripePaymentIntentId: null },
+            data: { stripePaymentIntentId: paymentIntentId },
+        });
+
         const completedTransaction = await completeTransactionService.completeTransaction(transactionId, userId, orgId);
 
         res.json({

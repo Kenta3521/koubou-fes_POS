@@ -1,7 +1,7 @@
 import Foundation
 
 actor APIClient {
-    nonisolated(unsafe) static let shared = APIClient()
+    nonisolated static let shared = APIClient()
     
     private let baseURL: URL
     private let session: URLSession
@@ -67,13 +67,15 @@ actor APIClient {
         case 200...299:
             // 成功、デコードして返す
             do {
-                if T.self == EmptyResponse.self {
+                // 204 No Content またはボディなしの場合
+                if T.self == EmptyResponse.self || data.isEmpty {
                     return EmptyResponse() as! T
                 }
-                
+
                 let decoder = JSONDecoder()
                 decoder.dateDecodingStrategy = .iso8601
-                return try decoder.decode(T.self, from: data)
+                // バックエンドAPIは { success: true, data: T } 形式でラップされる
+                return try decoder.decode(APIEnvelope<T>.self, from: data).data
             } catch {
                 throw APIError.decodingError(error)
             }
@@ -112,18 +114,17 @@ actor APIClient {
         return components.url!
     }
     
-    /// 401エラー時のトークンリフレッシュ処理
+    /// 401エラー時のトークンリフレッシュ処理（actor-isolated で refreshTask を排他制御）
     private func refreshAuthToken() async throws {
         // すでに別のリクエストがリフレッシュを実行中ならそれに相乗りする
         if let refreshTask = refreshTask {
             return try await refreshTask.value
         }
         
-        let task = Task {
+        let task = Task { [weak self] in
+            guard let self else { return }
             // リフレッシュリクエストを送信
-            // ※ここで依存関係や無限ループを避けるため専用のStructにデコード
             let response: AuthResponse = try await self.performRequest(.post, path: "/auth/refresh", body: nil as EmptyRequestBody?, queryItems: nil, isRetry: true)
-            
             // 新しいトークンをキーチェーンに保存
             self.keychainHelper.saveToken(response.token)
         }
@@ -132,7 +133,6 @@ actor APIClient {
         
         do {
             try await task.value
-            // 完了後はタスクをクリア
             self.refreshTask = nil
         } catch {
             self.refreshTask = nil
@@ -141,16 +141,4 @@ actor APIClient {
     }
 }
 
-// MARK: - Dummy / Helper Types for request
-
-/// ボディなしリクエスト等のためのダミー構造体
-struct EmptyRequestBody: Encodable {}
-
-/// 空のレスポンスを受け取るためのダミー構造体（ステータスコードのみで成功を判定する場合等）
-struct EmptyResponse: Decodable {}
-
-/// 認証関連のレスポンス（リフレッシュで受け取る形を想定）
-struct AuthResponse: Decodable {
-    let token: String
-    // let user: User ... // 今回リフレッシュ処理に必要なのはtokenのみの想定
-}
+// 型定義は pos/Models/APITypes.swift に移動済み

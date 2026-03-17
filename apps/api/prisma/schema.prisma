@@ -158,17 +158,18 @@ model Discount {
 }
 
 model Transaction {
-  id             String            @id @default(uuid())
-  organizationId String
-  userId         String
-  totalAmount    Int
-  discountAmount Int               @default(0)
-  discountId     String?
-  paymentMethod  PaymentMethod
-  paypayOrderId  String?           @unique
-  status         TransactionStatus @default(PENDING)
-  createdAt      DateTime          @default(now())
-  paypayCodeId   String?           @unique
+  id                    String            @id @default(uuid())
+  organizationId        String
+  userId                String
+  totalAmount           Int
+  discountAmount        Int               @default(0)
+  discountId            String?
+  paymentMethod         PaymentMethod
+  paypayOrderId         String?           @unique
+  status                TransactionStatus @default(PENDING)
+  createdAt             DateTime          @default(now())
+  paypayCodeId          String?           @unique
+  stripePaymentIntentId String?           @unique
   discount       Discount?         @relation(fields: [discountId], references: [id])
   organization   Organization      @relation(fields: [organizationId], references: [id])
   user           User              @relation(fields: [userId], references: [id])
@@ -228,6 +229,8 @@ model SystemSetting {
   systemEnabled   Boolean   @default(true)
   paypayEnabled   Boolean   @default(true)
   paypayQrTimeout Int       @default(300)
+  tapToPayEnabled Boolean   @default(true)
+  stripeLocationId String?
   updatedAt       DateTime  @updatedAt
 }
 

@@ -25,3 +25,16 @@ final class CachedProduct {
         self.sortOrder = sortOrder
     }
 }
+
+// MARK: - API DTO
+
+/// バックエンドの GET /organizations/:orgId/products レスポンス用 DTO
+struct APIProduct: Decodable {
+    let id: String
+    let organizationId: String
+    let categoryId: String?
+    let name: String
+    let price: Int
+    let isActive: Bool
+    // stock は iOS では不要なのでスキップ
+}

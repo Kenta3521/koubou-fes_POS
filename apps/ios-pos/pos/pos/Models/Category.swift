@@ -25,3 +25,14 @@ final class CachedCategory {
         self.isActive = isActive
     }
 }
+
+// MARK: - API DTO
+
+/// バックエンドの GET /organizations/:orgId/categories レスポンス用 DTO
+struct APICategory: Decodable {
+    let id: String
+    let organizationId: String
+    let name: String
+    let sortOrder: Int
+    // color / isActive は API に存在しないのでデフォルト値を使用
+}
