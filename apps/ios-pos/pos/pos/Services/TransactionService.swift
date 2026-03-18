@@ -82,6 +82,43 @@ final class TransactionService {
         )
     }
 
+    /// Stripe PaymentIntent を作成する
+    func createPaymentIntent(
+        orgId: String,
+        transactionId: String
+    ) async throws -> CreatePaymentIntentResponse {
+        let body = CreatePaymentIntentRequest(orgId: orgId, transactionId: transactionId)
+        return try await APIClient.shared.request(
+            .post,
+            path: "/stripe/create-payment-intent",
+            body: body
+        )
+    }
+
+    /// タッチ決済を完了する（在庫減算・ステータス COMPLETED）
+    func completeTapToPay(
+        orgId: String,
+        transactionId: String,
+        paymentIntentId: String
+    ) async throws -> CompleteCashResponse {
+        let body = CompleteTapToPayRequest(paymentIntentId: paymentIntentId)
+        return try await APIClient.shared.request(
+            .post,
+            path: "/organizations/\(orgId)/transactions/\(transactionId)/complete-tap-to-pay",
+            body: body
+        )
+    }
+
+    /// PaymentIntent をキャンセルする
+    func cancelPaymentIntent(paymentIntentId: String) async throws -> CancelPaymentIntentResponse {
+        let body = CancelPaymentIntentRequest(paymentIntentId: paymentIntentId)
+        return try await APIClient.shared.request(
+            .post,
+            path: "/stripe/cancel-payment-intent",
+            body: body
+        )
+    }
+
     /// 現金決済を完了する（在庫減算・ステータス COMPLETED）
     func completeCash(
         orgId: String,

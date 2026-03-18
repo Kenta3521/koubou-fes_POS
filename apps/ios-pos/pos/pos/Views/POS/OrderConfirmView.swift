@@ -4,10 +4,13 @@ import SwiftData
 struct OrderConfirmView: View {
     let orgId: String
     @Environment(POSViewModel.self) private var posVM
+    @Environment(AuthViewModel.self) private var authVM
     @Environment(\.modelContext) private var modelContext
     @Query private var manualDiscounts: [CachedDiscount]
     @State private var isDiscountSheetPresented = false
     @State private var isRefreshingDiscounts = false
+    @State private var isRecalculating = false
+    @State private var paymentError: String?
 
     init(orgId: String) {
         self.orgId = orgId
@@ -21,22 +24,50 @@ struct OrderConfirmView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 16) {
-                orderItemsSection
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(spacing: 16) {
+                    orderItemsSection
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
+                .padding(.bottom, 8)
+            }
+
+            VStack(spacing: 12) {
                 summarySection
                 if !manualDiscounts.isEmpty {
                     discountButton
                 }
-                paymentButtonsSection
             }
-            .padding(16)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(Color(.systemGroupedBackground))
         }
         .background(Color(.systemGroupedBackground))
         .navigationTitle("注文確認")
         .navigationBarTitleDisplayMode(.inline)
+        .safeAreaInset(edge: .bottom) {
+            paymentButtonsSection
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+                .padding(.bottom, 8)
+                .background(.ultraThinMaterial)
+        }
         .task {
             await posVM.fetchCalculation(orgId: orgId)
+        }
+        .alert("エラー", isPresented: .init(
+            get: { paymentError != nil },
+            set: { if !$0 { paymentError = nil } }
+        )) {
+            Button("商品選択に戻る") {
+                paymentError = nil
+                posVM.calculationResult = nil
+                posVM.navigationPath.removeAll()
+            }
+        } message: {
+            Text(paymentError ?? "")
         }
         .sheet(isPresented: $isDiscountSheetPresented) {
             DiscountSheetView(
@@ -246,17 +277,21 @@ struct OrderConfirmView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             let totalAmount = posVM.calculationResult?.totalAmount ?? 0
-            let isCalculationReady = posVM.calculationResult != nil && !posVM.isCalculating
+            let isCalculationReady = posVM.calculationResult != nil && !posVM.isCalculating && !isRecalculating
             let isNonZero = totalAmount > 0
 
-            // タップ決済（Apple 要件 5.2: 最上部に配置）
-            PaymentMethodButton(
-                title: "iPhoneのタッチ決済",
-                symbolName: "wave.3.right.circle.fill",
-                color: Color(red: 0.0, green: 0.478, blue: 1.0),  // Apple system blue
-                isEnabled: isCalculationReady && isNonZero
-            ) {
-                // iOS-3 で実装
+            // タップ決済（Apple 要件 5.2: 最上部配置）
+            // 権限がないユーザー、または設定で無効化している場合はボタンを非表示
+            if authVM.hasTapToPayPermission,
+               case .connected = TapToPayService.shared.connectionStatus {
+                PaymentMethodButton(
+                    title: "iPhoneのタッチ決済",
+                    symbolName: "wave.3.right.circle.fill",
+                    color: Color(red: 0.0, green: 0.478, blue: 1.0),
+                    isEnabled: isCalculationReady && isNonZero && !posVM.isTapToPayDisabled
+                ) {
+                    Task { await recalculateAndNavigate(to: .tapToPayPayment) }
+                }
             }
 
             // 現金
@@ -266,7 +301,7 @@ struct OrderConfirmView: View {
                 color: Color.appSuccess,
                 isEnabled: isCalculationReady
             ) {
-                posVM.navigationPath.append(.cashPayment)
+                Task { await recalculateAndNavigate(to: .cashPayment) }
             }
 
             // PayPay
@@ -276,7 +311,38 @@ struct OrderConfirmView: View {
                 color: Color(red: 1.0, green: 0.2, blue: 0.2),  // PayPay red
                 isEnabled: isCalculationReady && isNonZero
             ) {
-                posVM.navigationPath.append(.payPayPayment)
+                Task { await recalculateAndNavigate(to: .payPayPayment) }
+            }
+
+            if isRecalculating {
+                ProgressView()
+                    .scaleEffect(0.8)
+            }
+        }
+    }
+
+    // MARK: - 支払い前の再計算バリデーション
+
+    private func recalculateAndNavigate(to destination: POSDestination) async {
+        isRecalculating = true
+        let items = posVM.cartItems.map {
+            CalculationRequestItem(productId: $0.productId, quantity: $0.quantity)
+        }
+        do {
+            posVM.calculationResult = try await ProductService.shared.calculate(
+                orgId: orgId,
+                items: items,
+                manualDiscountId: posVM.selectedManualDiscountId
+            )
+            isRecalculating = false
+            posVM.navigationPath.append(destination)
+        } catch {
+            isRecalculating = false
+            let message = error.localizedDescription
+            if message.contains("INSUFFICIENT_STOCK") {
+                paymentError = "在庫が不足している商品が含まれています。商品選択画面からやり直してください。"
+            } else {
+                paymentError = "注文の確認中にエラーが発生しました。商品選択画面からやり直してください。"
             }
         }
     }

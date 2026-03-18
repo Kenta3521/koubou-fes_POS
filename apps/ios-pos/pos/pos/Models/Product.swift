@@ -35,6 +35,6 @@ struct APIProduct: Decodable {
     let categoryId: String?
     let name: String
     let price: Int
+    let stock: Int
     let isActive: Bool
-    // stock は iOS では不要なのでスキップ
 }

@@ -6,6 +6,7 @@ enum POSDestination: Hashable {
     case orderConfirm
     case cashPayment
     case payPayPayment
+    case tapToPayPayment
     case paymentComplete(transactionId: String, paymentMethod: String, receivedAmount: Int?)
 }
 
@@ -100,6 +101,9 @@ final class POSViewModel {
     var calculateError: String? = nil
     var selectedManualDiscountId: String? = nil
 
+    /// タッチ決済でエラーが発生した場合に true にし、ボタンをグレーアウトする
+    var isTapToPayDisabled = false
+
     /// /calculate API を呼び出して合計金額を取得する
     func fetchCalculation(orgId: String) async {
         guard !cartItems.isEmpty else { return }
@@ -132,6 +136,7 @@ final class POSViewModel {
         calculationResult = nil
         selectedManualDiscountId = nil
         calculateError = nil
+        isTapToPayDisabled = false
         navigationPath.removeAll()
     }
 }

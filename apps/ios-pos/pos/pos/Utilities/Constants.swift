@@ -8,5 +8,13 @@ struct Constants {
 
     struct UserDefaultsKeys {
         static let selectedOrganizationId = "selectedOrganizationId"
+        static let biometricLockEnabled = "biometricLockEnabled"
+        static let appearanceMode = "appearanceMode"
+        static let ttpOnboardingCompleted = "ttpOnboardingCompleted"
+        static let ttpSplashDismissed = "ttpSplashDismissed"
+    }
+
+    struct Stripe {
+        static let locationId = "tml_GbZXbwEQdN4n3p"
     }
 }

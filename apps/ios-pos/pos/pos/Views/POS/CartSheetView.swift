@@ -2,7 +2,20 @@ import SwiftUI
 
 struct CartSheetView: View {
     @Environment(POSViewModel.self) private var posVM
+    var availableProductIds: Set<String>
     var onCheckout: () -> Void
+
+    @State private var isValidating = false
+    @State private var validationError: String?
+
+    /// カート内の在庫なし/無効商品のID
+    private var unavailableItemIds: Set<String> {
+        Set(posVM.cartItems.map(\.productId).filter { !availableProductIds.contains($0) })
+    }
+
+    private var hasUnavailableItems: Bool {
+        !unavailableItemIds.isEmpty
+    }
 
     var body: some View {
         NavigationStack {
@@ -59,7 +72,7 @@ struct CartSheetView: View {
         VStack(spacing: 0) {
             List {
                 ForEach(posVM.cartItems) { item in
-                    CartItemRow(item: item)
+                    CartItemRow(item: item, isUnavailable: unavailableItemIds.contains(item.productId))
                 }
                 .onDelete { indexSet in
                     for index in indexSet {
@@ -95,24 +108,88 @@ struct CartSheetView: View {
                     .foregroundStyle(Color.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                Button {
-                    onCheckout()
-                } label: {
-                    Text("会計に進む")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(Color.appPrimary)
-                        .foregroundStyle(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                if hasUnavailableItems {
+                    HStack(spacing: 8) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(Color.appError)
+                        Text("在庫なしの商品を削除してください")
+                            .font(.caption)
+                            .foregroundStyle(Color.appError)
+                        Spacer()
+                        Button("一括削除") {
+                            posVM.cartItems.removeAll { unavailableItemIds.contains($0.productId) }
+                        }
+                        .font(.caption.bold())
+                        .foregroundStyle(Color.appError)
+                    }
                 }
+
+                if let error = validationError {
+                    HStack(spacing: 8) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(Color.appError)
+                        Text(error)
+                            .font(.caption)
+                            .foregroundStyle(Color.appError)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                Button {
+                    Task { await validateAndCheckout() }
+                } label: {
+                    Group {
+                        if isValidating {
+                            ProgressView()
+                                .tint(.white)
+                        } else {
+                            Text("会計に進む")
+                        }
+                    }
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(hasUnavailableItems || isValidating ? Color(.systemGray4) : Color.appPrimary)
+                    .foregroundStyle(.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                }
+                .disabled(hasUnavailableItems || isValidating)
                 .accessibilityLabel("会計に進む")
-                .accessibilityHint("注文確認画面へ移動します")
+                .accessibilityHint(hasUnavailableItems ? "在庫なしの商品を削除してください" : "注文確認画面へ移動します")
             }
             .padding(16)
             .padding(.bottom, 8)
         }
         .background(Color(.systemBackground))
+    }
+
+    // MARK: - 会計前バリデーション
+
+    private func validateAndCheckout() async {
+        isValidating = true
+        validationError = nil
+
+        let orgId = posVM.currentOrgId
+        let items = posVM.cartItems.map {
+            CalculationRequestItem(productId: $0.productId, quantity: $0.quantity)
+        }
+        do {
+            posVM.calculationResult = try await ProductService.shared.calculate(
+                orgId: orgId,
+                items: items,
+                manualDiscountId: posVM.selectedManualDiscountId
+            )
+            isValidating = false
+            onCheckout()
+        } catch {
+            isValidating = false
+            let message = error.localizedDescription
+            if message.contains("INSUFFICIENT_STOCK") {
+                validationError = "在庫が不足している商品が含まれています。カートを確認してください。"
+            } else {
+                validationError = "注文の確認中にエラーが発生しました: \(message)"
+            }
+        }
     }
 }
 
@@ -121,13 +198,25 @@ struct CartSheetView: View {
 private struct CartItemRow: View {
     @Environment(POSViewModel.self) private var posVM
     let item: CartItem
+    var isUnavailable: Bool = false
 
     var body: some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(item.name)
-                    .font(.subheadline.weight(.medium))
-                    .lineLimit(1)
+                HStack(spacing: 6) {
+                    Text(item.name)
+                        .font(.subheadline.weight(.medium))
+                        .lineLimit(1)
+                    if isUnavailable {
+                        Text("在庫なし")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.appError)
+                            .clipShape(Capsule())
+                    }
+                }
 
                 // 割引あり: 元値（打ち消し）＋割引後価格
                 if let discounted = item.discountedPrice {
@@ -189,7 +278,7 @@ private struct CartItemRow: View {
 }
 
 #Preview {
-    CartSheetView(onCheckout: {})
+    CartSheetView(availableProductIds: ["1"], onCheckout: {})
         .environment({
             let vm = POSViewModel()
             vm.cartItems = [

@@ -89,6 +89,40 @@ struct PayPayStatusResponse: Decodable {
     let synced: Bool
 }
 
+// MARK: - Stripe connection-token
+
+struct ConnectionTokenResponse: Decodable {
+    let secret: String
+}
+
+// MARK: - Stripe create-payment-intent
+
+struct CreatePaymentIntentRequest: Encodable {
+    let orgId: String
+    let transactionId: String
+}
+
+struct CreatePaymentIntentResponse: Decodable {
+    let clientSecret: String
+    let paymentIntentId: String
+}
+
+// MARK: - Stripe cancel-payment-intent
+
+struct CancelPaymentIntentRequest: Encodable {
+    let paymentIntentId: String
+}
+
+struct CancelPaymentIntentResponse: Decodable {
+    let status: String
+}
+
+// MARK: - Tap to Pay 決済完了
+
+struct CompleteTapToPayRequest: Encodable {
+    let paymentIntentId: String
+}
+
 // MARK: - トランザクションキャンセルレスポンス
 
 struct CancelTransactionResponse: Decodable {

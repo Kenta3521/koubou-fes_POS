@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		030AF099982C10628A62A503 /* KeychainAccess in Frameworks */ = {isa = PBXBuildFile; productRef = 09BF51A34E935C853315E859 /* KeychainAccess */; };
+		5CAEE1682F66FA75006A6916 /* StripeTerminal in Frameworks */ = {isa = PBXBuildFile; productRef = 5CAEE1692F66FA75006A6916 /* StripeTerminal */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -57,6 +58,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				030AF099982C10628A62A503 /* KeychainAccess in Frameworks */,
+				5CAEE1682F66FA75006A6916 /* StripeTerminal in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -118,6 +120,7 @@
 			name = pos;
 			packageProductDependencies = (
 				09BF51A34E935C853315E859 /* KeychainAccess */,
+				5CAEE1692F66FA75006A6916 /* StripeTerminal */,
 			);
 			productName = pos;
 			productReference = 5CAEE13B2F66EF1D006A6916 /* pos.app */;
@@ -410,6 +413,7 @@
 				INFOPLIST_KEY_NSAppTransportSecurity = "<dict><key>NSAllowsLocalNetworking</key><true/></dict>";
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "カードリーダーへの接続に使用します。";
 				INFOPLIST_KEY_NSBluetoothPeripheralUsageDescription = "カードリーダーへの接続に使用します。";
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "アプリのロック解除に使用します。";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "決済を受け付けるには、位置情報へのアクセスが必要です。";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -452,6 +456,7 @@
 				INFOPLIST_KEY_NSAppTransportSecurity = "<dict><key>NSAllowsLocalNetworking</key><true/></dict>";
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "カードリーダーへの接続に使用します。";
 				INFOPLIST_KEY_NSBluetoothPeripheralUsageDescription = "カードリーダーへの接続に使用します。";
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "アプリのロック解除に使用します。";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "決済を受け付けるには、位置情報へのアクセスが必要です。";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -629,6 +634,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 05898F4FB3F57971B8623F13 /* XCRemoteSwiftPackageReference "KeychainAccess" */;
 			productName = KeychainAccess;
+		};
+		5CAEE1692F66FA75006A6916 /* StripeTerminal */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5CAEE1672F66FA75006A6916 /* XCRemoteSwiftPackageReference "stripe-terminal-ios" */;
+			productName = StripeTerminal;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

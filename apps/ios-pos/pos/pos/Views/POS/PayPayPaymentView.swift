@@ -25,6 +25,7 @@ struct PayPayPaymentView: View {
     @State private var isCancelling = false
     @State private var pollingTask: Task<Void, Never>? = nil
     @State private var timerTask: Task<Void, Never>? = nil
+    @State private var previousBrightness: CGFloat = UIScreen.main.brightness
 
     private var totalAmount: Int {
         posVM.calculationResult?.totalAmount ?? posVM.subtotalPrice
@@ -75,9 +76,14 @@ struct PayPayPaymentView: View {
         .task {
             await startPayment()
         }
+        .onAppear {
+            previousBrightness = UIScreen.main.brightness
+            UIScreen.main.brightness = 1.0
+        }
         .onDisappear {
             pollingTask?.cancel()
             timerTask?.cancel()
+            UIScreen.main.brightness = previousBrightness
         }
     }
 

@@ -90,18 +90,6 @@ struct LoginView: View {
                         .disabled(!isFormValid || authVM.isLoading)
                         .padding(.horizontal, 24)
 
-                        // Face ID ボタン（前回JWTがある場合のみ表示）
-                        if authVM.canUseBiometrics {
-                            Button {
-                                Task { await authVM.authenticateWithBiometrics() }
-                            } label: {
-                                Label("Face ID でログイン", systemImage: "faceid")
-                                    .font(.subheadline)
-                            }
-                            .buttonStyle(.bordered)
-                            .tint(.appPrimary)
-                            .padding(.horizontal, 24)
-                        }
                     }
                 }
                 .padding(.bottom, 40)

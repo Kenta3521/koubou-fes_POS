@@ -22,16 +22,11 @@ final class AuthViewModel {
     var adminOrganizations: [OrganizationSummary] = []
     var errorMessage: String?
     var isLoading = false
-    var canUseBiometrics: Bool = false
 
     // MARK: - Dependencies
 
     private let authService = AuthService.shared
     private let keychainHelper = KeychainHelper.shared
-
-    init() {
-        checkBiometricsAvailability()
-    }
 
     // MARK: - 起動時 JWT チェック (仕様書§6.2)
 
@@ -41,9 +36,22 @@ final class AuthViewModel {
             return
         }
 
+        // 生体認証を要求（対応デバイスの場合）
+        let authenticated = await requestBiometricAuth()
+        guard authenticated else {
+            appState = .login
+            return
+        }
+
         do {
             let user = try await authService.fetchCurrentUser()
             currentUser = user
+
+            // システム管理者は全団体リストを取得（団体選択画面で必要）
+            if user.isSystemAdmin {
+                adminOrganizations = (try? await authService.fetchAllOrganizations()) ?? []
+            }
+
             resolveInitialDestination(for: user)
         } catch {
             // 401 またはネットワークエラー → ログイン画面
@@ -77,27 +85,52 @@ final class AuthViewModel {
         }
     }
 
-    // MARK: - 生体認証ログイン (iOS-1-033)
+    // MARK: - 生体認証 (iOS-3-054)
 
-    func authenticateWithBiometrics() async {
+    /// 生体認証を要求する。設定 OFF またはデバイス非対応の場合は true を返す。
+    func requestBiometricAuth() async -> Bool {
+        let enabled = UserDefaults.standard.bool(
+            forKey: Constants.UserDefaultsKeys.biometricLockEnabled
+        )
+        guard enabled else { return true }
+
         let context = LAContext()
-        var authError: NSError?
-
-        guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &authError) else {
-            errorMessage = "生体認証を利用できません"
-            return
+        var error: NSError?
+        // パスコードフォールバック付き（生体認証失敗後も解除可能にする）
+        guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else {
+            return true
         }
-
         do {
-            let result = try await context.evaluatePolicy(
-                .deviceOwnerAuthenticationWithBiometrics,
+            return try await context.evaluatePolicy(
+                .deviceOwnerAuthentication,
                 localizedReason: "アプリのロックを解除します"
             )
-            if result {
-                await checkAuthOnStartup()
-            }
         } catch {
-            // キャンセルや失敗は無視（手動ログインへ）
+            return false
+        }
+    }
+
+    /// デバイスの生体認証タイプに応じた SF Symbol 名を返す
+    static var biometrySymbolName: String {
+        let context = LAContext()
+        var error: NSError?
+        _ = context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error)
+        switch context.biometryType {
+        case .touchID: return "touchid"
+        case .opticID: return "opticid"
+        default: return "faceid"
+        }
+    }
+
+    /// デバイスの生体認証タイプに応じたラベルを返す
+    static var biometryLabel: String {
+        let context = LAContext()
+        var error: NSError?
+        _ = context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error)
+        switch context.biometryType {
+        case .touchID: return "Touch ID"
+        case .opticID: return "Optic ID"
+        default: return "Face ID"
         }
     }
 
@@ -144,6 +177,26 @@ final class AuthViewModel {
     private func resolveInitialDestination(for user: LoginUser) {
         let savedOrgId = UserDefaults.standard.string(forKey: Constants.UserDefaultsKeys.selectedOrganizationId)
 
+        // システム管理者: adminOrganizations から復元
+        if user.isSystemAdmin {
+            if let savedOrgId,
+               let org = adminOrganizations.first(where: { $0.id == savedOrgId }),
+               org.isActive {
+                selectedOrganization = UserOrganization(
+                    id: org.id,
+                    name: org.name,
+                    isActive: org.isActive,
+                    role: "SYSTEM_ADMIN",
+                    permissions: []
+                )
+                appState = .main
+            } else {
+                appState = .orgSelect
+            }
+            return
+        }
+
+        // 一般ユーザー: user.organizations から復元
         if let savedOrgId,
            let org = user.organizations.first(where: { $0.id == savedOrgId }),
            org.isActive {
@@ -162,12 +215,11 @@ final class AuthViewModel {
         }
     }
 
-    private func checkBiometricsAvailability() {
-        let context = LAContext()
-        var error: NSError?
-        canUseBiometrics = context.canEvaluatePolicy(
-            .deviceOwnerAuthenticationWithBiometrics,
-            error: &error
-        ) && KeychainHelper.shared.getToken() != nil
+    // MARK: - Tap to Pay 権限チェック (iOS-3-014)
+
+    var hasTapToPayPermission: Bool {
+        if currentUser?.isSystemAdmin == true { return true }
+        return selectedOrganization?.permissions.contains("enable_tap_to_pay") ?? false
     }
+
 }

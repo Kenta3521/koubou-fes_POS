@@ -76,7 +76,7 @@ final class ProductService {
             categoryId: dto.categoryId ?? "",
             name: dto.name,
             price: dto.price,
-            isAvailable: dto.isActive,
+            isAvailable: dto.isActive && dto.stock > 0,
             sortOrder: index
         )
     }

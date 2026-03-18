@@ -7,6 +7,7 @@ struct OrderInputView: View {
     @Query private var categories: [CachedCategory]
     @Query private var discounts: [CachedDiscount]
     @Environment(POSViewModel.self) private var posVM
+    @Environment(\.modelContext) private var modelContext
 
     init(orgId: String) {
         self.orgId = orgId
@@ -66,7 +67,7 @@ struct OrderInputView: View {
             get: { posVM.isCartPresented },
             set: { posVM.isCartPresented = $0 }
         )) {
-            CartSheetView(onCheckout: {
+            CartSheetView(availableProductIds: Set(products.filter(\.isAvailable).map(\.id)), onCheckout: {
                 posVM.isCartPresented = false
                 // シートの閉幕アニメーション（約0.35秒）完了後に NavigationPath へ push する。
                 // 同一フレームで実行すると NavigationStack がフリーズするため asyncAfter で遅延する。
@@ -76,6 +77,10 @@ struct OrderInputView: View {
             })
         }
         .sensoryFeedback(.impact(weight: .light), trigger: posVM.totalItemCount)
+        .onAppear {
+            // TTP エラー後に商品選択画面に戻った場合、再度利用可能にする
+            posVM.isTapToPayDisabled = false
+        }
     }
 
     // MARK: - Category Tab Bar
@@ -129,6 +134,12 @@ struct OrderInputView: View {
             }
             .padding(12)
             .padding(.bottom, 72)
+        }
+        .refreshable {
+            try? await ProductService.shared.refreshAllCache(
+                for: orgId,
+                modelContainer: modelContext.container
+            )
         }
     }
 
