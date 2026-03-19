@@ -44,8 +44,8 @@ WORKDIR /app
 # Set production environment
 ENV NODE_ENV=production
 
-# Install pnpm
-RUN npm install -g pnpm@8.15.1
+# Install pnpm and tsx (tsx is needed for prisma.config.ts)
+RUN npm install -g pnpm@8.15.1 tsx
 
 # Copy root workspace files
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
