@@ -28,6 +28,11 @@ final class TransactionHistoryViewModel {
                 date: dateFilter
             )
         } catch {
+            // 権限エラー時はキャッシュを空にする
+            if let apiError = error as? APIError,
+               case .forbidden = apiError {
+                transactions = []
+            }
             errorMessage = error.localizedDescription
         }
         isLoading = false

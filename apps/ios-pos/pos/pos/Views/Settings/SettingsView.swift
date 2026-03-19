@@ -10,6 +10,7 @@ struct SettingsView: View {
     private var appearanceMode: Int = 0
 
     @State private var biometricToggleValue = false
+    @State private var biometricInitialized = false
     @State private var biometricError: String?
     @State private var showBiometricSettingsAlert = false
     @State private var showLogoutConfirmation = false
@@ -86,8 +87,12 @@ struct SettingsView: View {
                     systemImage: AuthViewModel.biometrySymbolName
                 )
             }
-            .onAppear { biometricToggleValue = biometricLockEnabled }
+            .onAppear {
+                biometricToggleValue = biometricLockEnabled
+                biometricInitialized = true
+            }
             .onChange(of: biometricToggleValue) { _, newValue in
+                guard biometricInitialized else { return }
                 Task { await handleBiometricToggle(newValue) }
             }
 

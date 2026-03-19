@@ -57,9 +57,21 @@ final class TapToPayService: NSObject {
     // MARK: - Discover & Connect (iOS-3-012 / iOS-3-013)
 
     func discoverAndConnect(locationId: String) async throws {
-        switch connectionStatus {
-        case .discovering, .connecting, .connected:
+        // SDK 側で既にリーダーが接続済みの場合（アプリ側ステータスとの不整合を解消）
+        if Terminal.shared.connectedReader != nil {
+            DispatchQueue.main.async {
+                self.connectionStatus = .connected
+                self.isReaderReady = true
+            }
             return
+        }
+
+        switch connectionStatus {
+        case .discovering, .connecting:
+            return
+        case .error:
+            // エラー状態からの再接続: SDK 側に残った接続を念のためクリーンアップ
+            try? await Terminal.shared.disconnectReader()
         default:
             break
         }

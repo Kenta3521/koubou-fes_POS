@@ -8,6 +8,7 @@ private enum TTPPaymentState: Equatable {
     case collectingPayment    // NFC リーダー UI 表示中（SDK が制御）
     case processing           // confirmPaymentIntent 実行中
     case succeeded            // 決済成功
+    case cancelled            // ユーザーによる手動キャンセル
     case declined(String)     // カード拒否（理由メッセージ）
     case error(String)        // その他エラー
 }
@@ -45,6 +46,8 @@ struct TapToPayPaymentView: View {
                 processingView
             case .succeeded:
                 succeededView
+            case .cancelled:
+                cancelledView
             case .declined(let reason):
                 declinedView(reason)
             case .error(let message):
@@ -56,14 +59,10 @@ struct TapToPayPaymentView: View {
         .navigationBarBackButtonHidden(true)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                if viewState == .creating || viewState == .collectingPayment {
-                    Button(role: .destructive) {
-                        Task { await handleCancel() }
-                    } label: {
-                        Text("取引中止")
-                            .foregroundStyle(Color.appError)
-                    }
-                    .disabled(isCancelling)
+                if case .creating = viewState {
+                    cancelToolbarButton
+                } else if case .collectingPayment = viewState {
+                    cancelToolbarButton
                 }
             }
         }
@@ -72,6 +71,16 @@ struct TapToPayPaymentView: View {
         .task {
             await startPayment()
         }
+    }
+
+    private var cancelToolbarButton: some View {
+        Button(role: .destructive) {
+            Task { await handleCancel() }
+        } label: {
+            Text("取引中止")
+                .foregroundStyle(Color.appError)
+        }
+        .disabled(isCancelling)
     }
 
     // MARK: - 画面: 準備中
@@ -151,6 +160,53 @@ struct TapToPayPaymentView: View {
         .padding()
     }
 
+    // MARK: - 画面: キャンセル
+
+    private var cancelledView: some View {
+        VStack(spacing: 20) {
+            Spacer()
+            Image(systemName: "xmark.circle.fill")
+                .font(.system(size: 72))
+                .foregroundStyle(Color.appWarning)
+
+            Text("キャンセルされました")
+                .font(.title2.bold())
+
+            Text("他の決済方法を選択するか取引を中止してください。")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
+
+            Spacer()
+
+            VStack(spacing: 12) {
+                Button {
+                    posVM.isTapToPayDisabled = true
+                    posVM.navigationPath.removeLast()
+                } label: {
+                    Text("注文確認画面に戻る")
+                        .fontWeight(.semibold)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.appPrimary)
+
+                Button(role: .destructive) {
+                    Task { await handleCancel() }
+                } label: {
+                    Text("取引中止")
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
+                }
+                .disabled(isCancelling)
+            }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 40)
+        }
+    }
+
     // MARK: - 画面: 拒否 (iOS-3-034)
 
     private func declinedView(_ reason: String) -> some View {
@@ -216,14 +272,22 @@ struct TapToPayPaymentView: View {
                 .font(.system(size: 72))
                 .foregroundStyle(Color.appError)
 
-            Text("エラーが発生しました")
+            Text("タッチ決済に失敗しました")
                 .font(.title2.bold())
 
-            Text(message)
+            Text("他の決済方法を選択するか取引を中止してください。")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
+
+            if !message.isEmpty {
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+            }
 
             Spacer()
 
@@ -232,7 +296,7 @@ struct TapToPayPaymentView: View {
                     posVM.isTapToPayDisabled = true
                     posVM.navigationPath.removeLast()
                 } label: {
-                    Text("注文確認に戻る")
+                    Text("注文確認画面に戻る")
                         .fontWeight(.semibold)
                         .frame(maxWidth: .infinity)
                         .frame(height: 50)
@@ -375,15 +439,18 @@ struct TapToPayPaymentView: View {
            let code = TapToPayReaderErrorCode(rawValue: nsError.code) {
             switch code {
             case .readCancelled, .pinCancelled, .accountLinkingCancelled:
-                // ユーザーキャンセル → 注文確認に戻る
-                posVM.navigationPath.removeLast()
-                return
-            case .cardReadFailed, .paymentReadFailed:
                 errorFeedbackTrigger.toggle()
-                viewState = .declined("カードを読み取れませんでした。もう一度お試しください。")
+                viewState = .cancelled
+                return
             case .paymentCardDeclined:
                 errorFeedbackTrigger.toggle()
                 viewState = .declined("カード会社によりお支払いが拒否されました。")
+            case .cardReadFailed, .paymentReadFailed:
+                errorFeedbackTrigger.toggle()
+                viewState = .declined("カードを読み取れませんでした。もう一度お試しください。")
+            case .cardNotSupported:
+                errorFeedbackTrigger.toggle()
+                viewState = .declined("このカードは対応していません。別のカードをお試しください。")
             case .networkError, .networkAuthenticationError:
                 errorFeedbackTrigger.toggle()
                 viewState = .error("ネットワークに接続されていません。Wi-Fi を確認してください。")
@@ -399,9 +466,6 @@ struct TapToPayPaymentView: View {
             case .merchantBlocked, .deviceBanned:
                 errorFeedbackTrigger.toggle()
                 viewState = .error("決済の上限に達しました。別のデバイスを使用してください。")
-            case .cardNotSupported:
-                errorFeedbackTrigger.toggle()
-                viewState = .declined("このカードは対応していません。別のカードをお試しください。")
             case .nfcDisabled:
                 errorFeedbackTrigger.toggle()
                 viewState = .error("NFCが無効になっています。設定からNFCを有効にしてください。")
@@ -413,11 +477,11 @@ struct TapToPayPaymentView: View {
                 viewState = .error("リーダーが使用中です。しばらくしてからお試しください。")
             case .prepareFailed, .readerInitializationFailed:
                 errorFeedbackTrigger.toggle()
-                viewState = .error("タッチ決済の初期化に失敗しました。もう一度お試しください。")
+                viewState = .error("タッチ決済の初期化に失敗しました。")
             case .serviceConnectionError, .readerServiceConnectionError, .readerServiceError:
                 errorFeedbackTrigger.toggle()
-                viewState = .error("決済サービスへの接続に失敗しました。もう一度お試しください。")
-            case .accountNotLinked, .accountLinkingFailed, .accountLinkingCancelled:
+                viewState = .error("決済サービスへの接続に失敗しました。")
+            case .accountNotLinked, .accountLinkingFailed:
                 errorFeedbackTrigger.toggle()
                 viewState = .error("アカウントの連携に失敗しました。設定画面からタッチ決済を再設定してください。")
             case .accountDeactivated:
@@ -425,22 +489,22 @@ struct TapToPayPaymentView: View {
                 viewState = .error("アカウントが無効化されています。管理者に連絡してください。")
             default:
                 errorFeedbackTrigger.toggle()
-                viewState = .error("決済処理中にエラーが発生しました。もう一度お試しください。")
+                viewState = .error("")
             }
         } else if nsError.domain == "com.stripe-terminal.error" {
-            // Stripe Terminal の一般エラー（canceled 含む）
             if nsError.code == 2020 { // SCPErrorCanceled
-                posVM.navigationPath.removeLast()
+                errorFeedbackTrigger.toggle()
+                viewState = .cancelled
                 return
             }
             errorFeedbackTrigger.toggle()
-            viewState = .error("決済処理中にエラーが発生しました。もう一度お試しください。")
+            viewState = .error("")
         } else if let apiError = error as? APIError {
             errorFeedbackTrigger.toggle()
             viewState = .error(apiError.errorDescription ?? "サーバーとの通信に失敗しました。")
         } else {
             errorFeedbackTrigger.toggle()
-            viewState = .error("予期せぬエラーが発生しました。もう一度お試しください。")
+            viewState = .error("")
         }
     }
 }

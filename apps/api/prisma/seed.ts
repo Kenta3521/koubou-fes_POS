@@ -98,8 +98,8 @@ async function main() {
         { code: 'org:update', name: '団体設定更新', category: 'Organization', description: '団体設定の変更' },
         { code: 'org:management', name: '団体全管理', category: 'Organization', description: '団体管理の全操作を許可' },
 
-        // Payment
-        { code: 'enable_tap_to_pay', name: 'タップ決済の有効化', category: 'Payment', description: 'iPhoneのタップ決済のT&C同意・有効化操作を行う' },
+        // Transaction (Tap to Pay)
+        { code: 'enable_tap_to_pay', name: 'タッチ決済の有効化', category: 'Transaction', description: 'iPhoneのタッチ決済（Tap to Pay）の有効化・利用を許可する' },
     ];
 
     for (const p of permissions) {

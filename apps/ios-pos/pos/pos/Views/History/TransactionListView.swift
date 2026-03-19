@@ -6,6 +6,7 @@ struct TransactionListView: View {
     @State private var viewModel = TransactionHistoryViewModel()
     @State private var selectedTransaction: TransactionSummary? = nil
     @State private var isFilterExpanded = false
+    var refreshToken: UUID = UUID()
 
     // MARK: - Body
 
@@ -31,7 +32,7 @@ struct TransactionListView: View {
                     .accessibilityLabel("フィルタ")
                 }
             }
-            .task {
+            .task(id: refreshToken) {
                 await viewModel.fetchTransactions(orgId: orgId)
             }
             .sheet(item: $selectedTransaction) { txn in
