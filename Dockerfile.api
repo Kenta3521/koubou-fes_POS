@@ -56,6 +56,7 @@ COPY --from=builder /app/apps/api/prisma.config.ts ./apps/api/
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
 COPY --from=builder /app/apps/api/generated ./apps/api/generated
+COPY --from=builder /app/apps/api/.prisma ./apps/api/.prisma
 
 # Copy shared package (including its node_modules for @casl/ability etc.)
 COPY --from=builder /app/packages/shared/package.json ./packages/shared/
