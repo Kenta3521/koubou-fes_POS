@@ -75,4 +75,4 @@ RUN npx prisma generate
 EXPOSE 3001
 
 # Run the API server
-CMD ["node", "dist/server.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && npx tsx prisma/seed.ts && node dist/server.js"]
