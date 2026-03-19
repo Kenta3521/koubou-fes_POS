@@ -26,7 +26,7 @@ COPY . .
 # Generate Prisma client BEFORE building the API
 # APIのビルドにはPrisma Clientの型定義が必要
 WORKDIR /app/apps/api
-RUN pnpm generate
+RUN npx prisma generate
 
 # Build the API and shared packages
 WORKDIR /app
