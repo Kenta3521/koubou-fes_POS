@@ -18,6 +18,9 @@ const app: Application = express();
 const PORT = process.env.PORT || 3001;
 const logger = createLogger();
 
+// Trust Railway's reverse proxy
+app.set('trust proxy', 1);
+
 // Security middleware
 app.use(helmet());
 app.use(
