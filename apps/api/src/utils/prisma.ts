@@ -22,7 +22,7 @@ let pool: pg.Pool;
 let prisma: PrismaClientType;
 
 if (process.env.NODE_ENV === 'production') {
-    pool = new Pool({ connectionString, ssl: false });
+    pool = new Pool({ connectionString, ssl: { rejectUnauthorized: false } });
     prisma = new PrismaClient({
         adapter: new PrismaPg(pool),
         log: ['error'],
