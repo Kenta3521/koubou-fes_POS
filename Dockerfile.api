@@ -55,7 +55,6 @@ COPY --from=builder /app/apps/api/package.json ./apps/api/
 COPY --from=builder /app/apps/api/prisma.config.ts ./apps/api/
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
-COPY --from=builder /app/apps/api/generated ./apps/api/generated
 
 # Copy shared package (including its node_modules for @casl/ability etc.)
 COPY --from=builder /app/packages/shared/package.json ./packages/shared/
@@ -68,11 +67,10 @@ COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules
 
 WORKDIR /app/apps/api
 
-# Re-generate Prisma client and place it where Node.js module resolution can find it.
-# prisma generate creates .prisma/ relative to cwd (apps/api/.prisma/).
-# Node.js resolves .prisma/client/default from the pnpm virtual store by walking up
-# through /app/node_modules/ and then /app/ — so we move it to /app/.prisma/.
-RUN npx prisma generate && cp -r .prisma /app/.prisma
+# Generate Prisma client into pnpm virtual store (default output location)
+# schema.prisma does NOT use custom output, so .prisma/client/ is written
+# directly into node_modules/.pnpm/.../node_modules/.prisma/client/
+RUN npx prisma generate
 
 EXPOSE 3001
 
